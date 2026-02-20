@@ -133,3 +133,49 @@ async def test_post_category_422_invalid_type_name(client: AsyncClient):
         json={"name": 123},
     )
     assert response.status_code == 422
+
+
+# --- GET /api/v1/categories/{id} (Step 8) ---
+
+
+async def test_get_category_by_id_200_existing(
+    client: AsyncClient,
+    one_active_category: Category,
+):
+    """GET /categories/{id} with existing id returns 200 and data with id, name, color, active, createdAt."""
+    response = await client.get(f"/api/v1/categories/{one_active_category.id}")
+    assert response.status_code == 200
+    body = response.json()
+    assert "data" in body
+    data = body["data"]
+    assert data["id"] == str(one_active_category.id)
+    assert data["name"] == one_active_category.name
+    assert data["color"] == one_active_category.color
+    assert data["active"] is True
+    assert "createdAt" in data
+
+
+async def test_get_category_by_id_200_inactive(
+    client: AsyncClient,
+    one_inactive_category: Category,
+):
+    """GET /categories/{id} returns inactive record (for historical display)."""
+    response = await client.get(f"/api/v1/categories/{one_inactive_category.id}")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["id"] == str(one_inactive_category.id)
+    assert data["active"] is False
+
+
+async def test_get_category_by_id_404_not_found(client: AsyncClient):
+    """GET /categories/{id} with non-existent UUID returns 404."""
+    response = await client.get(f"/api/v1/categories/{uuid.uuid4()}")
+    assert response.status_code == 404
+    body = response.json()
+    assert "detail" in body
+
+
+async def test_get_category_by_id_422_invalid_uuid(client: AsyncClient):
+    """GET /categories/{id} with invalid UUID format returns 422."""
+    response = await client.get("/api/v1/categories/not-a-uuid")
+    assert response.status_code == 422

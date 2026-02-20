@@ -1,12 +1,14 @@
-"""Categories API: GET list, POST (GET one, PUT, DELETE in later steps)."""
+"""Categories API: GET list, GET one, POST (PUT, DELETE in later steps)."""
 
-from fastapi import APIRouter, Depends, status
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_db
 from app.schemas.category import CategoryCreate, CategoryResponse
-from app.services.category import create_category, list_categories
+from app.services.category import create_category, get_category, list_categories
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
@@ -38,6 +40,31 @@ async def post_category(
         content={"data": payload},
         headers={"Location": f"/api/v1/categories/{row.id}"},
     )
+
+
+@router.get(
+    "/{id}",
+    response_model=dict,
+    responses={
+        200: {"description": "Category found"},
+        404: {"description": "Category not found"},
+        422: {"description": "Invalid UUID format"},
+    },
+)
+async def get_category_by_id(
+    id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+) -> dict:
+    """Get a single category by id (active or inactive)."""
+    row = await get_category(session, id)
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
+        )
+    payload = CategoryResponse.model_validate(row).model_dump(
+        mode="json", by_alias=True
+    )
+    return {"data": payload}
 
 
 @router.get(

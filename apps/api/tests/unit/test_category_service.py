@@ -6,7 +6,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Category
-from app.services.category import create_category, list_categories
+from app.services.category import create_category, get_category, list_categories
 
 
 @pytest_asyncio.fixture
@@ -104,3 +104,31 @@ async def test_create_category_without_color(db_session: AsyncSession):
     assert row.color is None
     listed = await list_categories(db_session, active_only=True)
     assert any(r.id == row.id for r in listed)
+
+
+async def test_get_category_returns_none_when_not_found(db_session: AsyncSession):
+    """get_category returns None when id does not exist."""
+    result = await get_category(db_session, uuid.uuid4())
+    assert result is None
+
+
+async def test_get_category_returns_record_when_found(
+    db_session: AsyncSession,
+    category_active: Category,
+):
+    """get_category returns the record when found (active or inactive)."""
+    result = await get_category(db_session, category_active.id)
+    assert result is not None
+    assert result.id == category_active.id
+    assert result.name == category_active.name
+
+
+async def test_get_category_returns_inactive_record(
+    db_session: AsyncSession,
+    category_inactive: Category,
+):
+    """get_category returns inactive record for historical display."""
+    result = await get_category(db_session, category_inactive.id)
+    assert result is not None
+    assert result.id == category_inactive.id
+    assert result.active is False

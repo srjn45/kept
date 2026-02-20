@@ -1,9 +1,20 @@
-"""Category service: list, create (get, update, delete in later steps)."""
+"""Category service: list, get, create (update, delete in later steps)."""
+
+import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Category
+
+
+async def get_category(
+    session: AsyncSession,
+    id: uuid.UUID,
+) -> Category | None:
+    """Return a category by id, or None if not found. Includes active and inactive."""
+    result = await session.execute(select(Category).where(Category.id == id))
+    return result.scalar_one_or_none()
 
 
 async def create_category(
