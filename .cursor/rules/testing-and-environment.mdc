@@ -1,0 +1,32 @@
+---
+description: How to run tests, use uv, and start the database (Docker)
+alwaysApply: true
+---
+
+# Testing and environment
+
+## Running tests
+
+- Tests live in `apps/api/tests/`. Run them from **`apps/api/`**:
+  - `uv run pytest tests/ -v`
+  - Or with PATH set (see below): `uv run pytest tests/ -v`
+
+## PATH for uv
+
+- If `uv` is not found (e.g. in some terminals or CI), prepend common install paths before running any `uv` command:
+  ```bash
+  export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:/usr/local/bin:${PATH}"
+  ```
+- Then run `uv run ...` or `uv sync` as needed from `apps/api/`.
+
+## Database not available
+
+- PostgreSQL is required for tests and the API. From the **repo root**:
+  ```bash
+  docker compose up -d
+  ```
+- This starts Postgres 16 on port 5432 with databases `expense_manager` and `expense_manager_test`.
+- In `apps/api/`, ensure `.env` exists (copy from `.env.example`) with at least:
+  - `DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/expense_manager`
+  - Optional: `TEST_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/expense_manager_test`
+- If the schema is missing, run migrations from `apps/api/`: `uv run alembic upgrade head`
