@@ -6,7 +6,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import PaymentMethod
-from app.services.payment_method import create_payment_method, get_payment_method, list_payment_methods, update_payment_method
+from app.services.payment_method import create_payment_method, get_payment_method, list_payment_methods, soft_delete_payment_method, update_payment_method
 
 
 @pytest_asyncio.fixture
@@ -165,3 +165,36 @@ async def test_update_payment_method_strips_whitespace(
     assert result is not None
     assert result.name == "UPI"
     assert result.currency == "INR"
+
+
+async def test_soft_delete_payment_method_returns_none_when_not_found(db_session: AsyncSession):
+    """soft_delete_payment_method returns None when id does not exist."""
+    result = await soft_delete_payment_method(db_session, uuid.uuid4())
+    assert result is None
+
+
+async def test_soft_delete_payment_method_sets_active_false_and_returns(
+    db_session: AsyncSession,
+    payment_method_active: PaymentMethod,
+):
+    """soft_delete_payment_method sets active=False and returns the model."""
+    result = await soft_delete_payment_method(db_session, payment_method_active.id)
+    assert result is not None
+    assert result.id == payment_method_active.id
+    assert result.active is False
+    # Persisted: get_payment_method sees inactive; list active_only excludes it
+    fetched = await get_payment_method(db_session, payment_method_active.id)
+    assert fetched is not None and fetched.active is False
+    listed = await list_payment_methods(db_session, active_only=True)
+    assert payment_method_active.id not in [r.id for r in listed]
+
+
+async def test_soft_delete_payment_method_idempotent_when_already_inactive(
+    db_session: AsyncSession,
+    payment_method_inactive: PaymentMethod,
+):
+    """soft_delete_payment_method is idempotent: calling again on inactive record still returns 200-style result."""
+    result = await soft_delete_payment_method(db_session, payment_method_inactive.id)
+    assert result is not None
+    assert result.id == payment_method_inactive.id
+    assert result.active is False

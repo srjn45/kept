@@ -49,6 +49,20 @@ async def update_payment_method(
     return row
 
 
+async def soft_delete_payment_method(
+    session: AsyncSession,
+    id: uuid.UUID,
+) -> PaymentMethod | None:
+    """Soft delete a payment method by id (set active=False). Idempotent if already inactive. Returns None if not found."""
+    row = await get_payment_method(session, id)
+    if row is None:
+        return None
+    row.active = False
+    await session.flush()
+    await session.refresh(row)
+    return row
+
+
 async def list_payment_methods(
     session: AsyncSession,
     *,

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_db
 from app.schemas.payment_method import PaymentMethodCreate, PaymentMethodResponse
-from app.services.payment_method import create_payment_method, get_payment_method, list_payment_methods, update_payment_method
+from app.services.payment_method import create_payment_method, get_payment_method, list_payment_methods, soft_delete_payment_method, update_payment_method
 
 router = APIRouter(prefix="/payment-methods", tags=["payment-methods"])
 
@@ -100,6 +100,27 @@ async def put_payment_method(
         name=body.name,
         currency=body.currency,
     )
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment method not found")
+    payload = PaymentMethodResponse.model_validate(row).model_dump(mode="json", by_alias=True)
+    return {"data": payload}
+
+
+@router.delete(
+    "/{id}",
+    response_model=dict,
+    responses={
+        200: {"description": "Payment method soft-deleted"},
+        404: {"description": "Payment method not found"},
+        422: {"description": "Invalid UUID format"},
+    },
+)
+async def delete_payment_method(
+    id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+) -> dict:
+    """Soft delete a payment method by id (set active=False)."""
+    row = await soft_delete_payment_method(session, id)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment method not found")
     payload = PaymentMethodResponse.model_validate(row).model_dump(mode="json", by_alias=True)

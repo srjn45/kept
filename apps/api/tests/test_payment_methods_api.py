@@ -307,3 +307,37 @@ async def test_put_payment_method_422_invalid_uuid(client: AsyncClient):
         json={"name": "Card", "currency": "INR"},
     )
     assert response.status_code == 422
+
+
+# --- DELETE /api/v1/payment-methods/{id} (Step 5) ---
+
+
+async def test_delete_payment_method_200_soft_deletes(
+    client: AsyncClient,
+    one_active_payment_method: PaymentMethod,
+):
+    """DELETE with existing id returns 200 and data with active=false; GET same id still returns record with active false."""
+    response = await client.delete(f"/api/v1/payment-methods/{one_active_payment_method.id}")
+    assert response.status_code == 200
+    body = response.json()
+    assert "data" in body
+    data = body["data"]
+    assert data["id"] == str(one_active_payment_method.id)
+    assert data["active"] is False
+    # GET same id still returns record with active: false
+    get_resp = await client.get(f"/api/v1/payment-methods/{one_active_payment_method.id}")
+    assert get_resp.status_code == 200
+    assert get_resp.json()["data"]["active"] is False
+
+
+async def test_delete_payment_method_404_not_found(client: AsyncClient):
+    """DELETE with non-existent id returns 404."""
+    response = await client.delete(f"/api/v1/payment-methods/{uuid.uuid4()}")
+    assert response.status_code == 404
+    assert "detail" in response.json()
+
+
+async def test_delete_payment_method_422_invalid_uuid(client: AsyncClient):
+    """DELETE with invalid UUID path returns 422."""
+    response = await client.delete("/api/v1/payment-methods/not-a-uuid")
+    assert response.status_code == 422
