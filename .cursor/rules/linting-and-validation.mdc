@@ -1,17 +1,22 @@
 ---
-description: Validate code with Ruff and mypy after every code change
+description: BE workflow—tests, lint (Ruff & mypy), then pre-commit after code changes
 alwaysApply: true
 ---
 
-# Linting and validation
+# Backend workflow and validation
 
-After every code change (in `apps/api/` or its tests), validate the code with Ruff and mypy so the commit stays clean.
+After **any backend code change** (in `apps/api/` or its tests), follow this flow. Run all commands from **`apps/api/`** (and ensure `uv` is on PATH; see testing-and-environment rule if not).
 
-## Commands (run from `apps/api/`)
+## Flow
 
-- **Ruff (lint):** `uv run ruff check .`
-- **Ruff (format check):** `uv run ruff format --check .`
-- **mypy:** `uv run mypy app`
+1. **Make code changes** (app code or tests).
+2. **Write tests** (unit and/or integration as needed).
+3. **Run and debug tests:** `uv run pytest tests/ -v` — fix until all pass.
+4. **Run lint and debug:**  
+   - `uv run ruff check .`  
+   - `uv run ruff format --check .` (or `uv run ruff format .` to fix)  
+   - `uv run mypy app`  
+   Fix any reported issues.
+5. **Run pre-commit and debug:** `uv run pre-commit run --all-files` — fix any failing hook until all pass.
 
-Fix any reported issues before committing. If PATH doesn’t include `uv`, use:
-`export PATH="${HOME}/.local/bin:${PATH}"` (or see testing-and-environment rule).
+Always run pre-commit (`uv run pre-commit run --all-files`) on BE code changes **after tests are successful** so the commit stays clean.

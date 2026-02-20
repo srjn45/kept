@@ -7,7 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_db
-from app.routers import payment_methods
+from app.routers import categories, payment_methods
 
 
 @asynccontextmanager
@@ -18,6 +18,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Expense Manager API", version="0.1.0", lifespan=lifespan)
 
 app.include_router(payment_methods.router, prefix="/api/v1")
+app.include_router(categories.router, prefix="/api/v1")
 
 
 @app.get("/health", include_in_schema=False)
