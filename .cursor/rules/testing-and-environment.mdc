@@ -30,3 +30,9 @@ alwaysApply: true
   - `DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/expense_manager`
   - Optional: `TEST_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/expense_manager_test`
 - If the schema is missing, run migrations from `apps/api/`: `uv run alembic upgrade head`
+
+## Pre-commit (lint + tests)
+
+- A pre-commit hook runs **Ruff** (check + format), **mypy**, and **pytest** on every commit; the commit fails if any of them fail.
+- Install the hook once from **`apps/api/`**: `uv run pre-commit install` (ensure `uv` is on PATH).
+- Config lives at repo root: `.pre-commit-config.yaml`. To run the same checks without committing: `uv run pre-commit run --all-files` from `apps/api/`.

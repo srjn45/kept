@@ -30,6 +30,7 @@ dev-dependencies = [
     "psycopg2-binary>=2.9.0",
     "ruff>=0.15.2",
     "mypy>=1.19.1",
+    "pre-commit>=4.0.0",
 ]
 
 [build-system]

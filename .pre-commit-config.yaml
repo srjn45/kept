@@ -1,0 +1,30 @@
+# Pre-commit: run from repo root. Install with: cd apps/api && uv run pre-commit install
+# Requires: uv on PATH (e.g. PATH="$HOME/.local/bin:$PATH")
+# API app lives in apps/api; hooks run lint and tests there.
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: bash -c 'cd apps/api && uv run ruff check .'
+        language: system
+        pass_filenames: false
+
+      - id: ruff-format
+        name: ruff format
+        entry: bash -c 'cd apps/api && uv run ruff format --check .'
+        language: system
+        pass_filenames: false
+
+      - id: mypy
+        name: mypy
+        entry: bash -c 'cd apps/api && uv run mypy app'
+        language: system
+        pass_filenames: false
+
+      - id: pytest
+        name: pytest
+        entry: bash -c 'cd apps/api && uv run pytest tests/ -v'
+        language: system
+        pass_filenames: false

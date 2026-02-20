@@ -1,0 +1,17 @@
+---
+description: Validate code with Ruff and mypy after every code change
+alwaysApply: true
+---
+
+# Linting and validation
+
+After every code change (in `apps/api/` or its tests), validate the code with Ruff and mypy so the commit stays clean.
+
+## Commands (run from `apps/api/`)
+
+- **Ruff (lint):** `uv run ruff check .`
+- **Ruff (format check):** `uv run ruff format --check .`
+- **mypy:** `uv run mypy app`
+
+Fix any reported issues before committing. If PATH doesn’t include `uv`, use:
+`export PATH="${HOME}/.local/bin:${PATH}"` (or see testing-and-environment rule).
