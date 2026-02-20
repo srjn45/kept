@@ -81,3 +81,73 @@ async def test_get_payment_methods_created_at_is_iso8601(
     assert "T" in created_at
     # Parseable as ISO 8601 (naive or with Z/offset)
     datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+
+
+# --- POST /api/v1/payment-methods (Step 2) ---
+
+
+async def test_post_payment_method_201_valid_body(client: AsyncClient):
+    """POST with valid body returns 201, Location header, and data with id, name, currency, active, createdAt."""
+    response = await client.post(
+        "/api/v1/payment-methods",
+        json={"name": "Card", "currency": "INR"},
+    )
+    assert response.status_code == 201
+    assert response.headers.get("location", "").startswith("/api/v1/payment-methods/")
+    body = response.json()
+    assert "data" in body
+    data = body["data"]
+    assert "id" in data
+    assert data["name"] == "Card"
+    assert data["currency"] == "INR"
+    assert data["active"] is True
+    assert "createdAt" in data
+
+
+async def test_post_payment_method_422_missing_name(client: AsyncClient):
+    """POST without name returns 422."""
+    response = await client.post(
+        "/api/v1/payment-methods",
+        json={"currency": "INR"},
+    )
+    assert response.status_code == 422
+    detail = response.json().get("detail", [])
+    assert any("name" in str(e.get("loc", [])) for e in detail)
+
+
+async def test_post_payment_method_422_missing_currency(client: AsyncClient):
+    """POST without currency returns 422."""
+    response = await client.post(
+        "/api/v1/payment-methods",
+        json={"name": "Card"},
+    )
+    assert response.status_code == 422
+    detail = response.json().get("detail", [])
+    assert any("currency" in str(e.get("loc", [])) for e in detail)
+
+
+async def test_post_payment_method_422_empty_name(client: AsyncClient):
+    """POST with empty name returns 422."""
+    response = await client.post(
+        "/api/v1/payment-methods",
+        json={"name": "", "currency": "INR"},
+    )
+    assert response.status_code == 422
+
+
+async def test_post_payment_method_422_empty_currency(client: AsyncClient):
+    """POST with empty currency returns 422."""
+    response = await client.post(
+        "/api/v1/payment-methods",
+        json={"name": "Card", "currency": ""},
+    )
+    assert response.status_code == 422
+
+
+async def test_post_payment_method_422_invalid_type_name(client: AsyncClient):
+    """POST with name as number returns 422."""
+    response = await client.post(
+        "/api/v1/payment-methods",
+        json={"name": 123, "currency": "INR"},
+    )
+    assert response.status_code == 422

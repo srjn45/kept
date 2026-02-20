@@ -6,7 +6,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import PaymentMethod
-from app.services.payment_method import list_payment_methods
+from app.services.payment_method import create_payment_method, list_payment_methods
 
 
 @pytest_asyncio.fixture
@@ -78,3 +78,17 @@ async def test_list_payment_methods_active_only_false_includes_inactive(
     assert payment_method_active.id in ids
     assert payment_method_inactive.id in ids
     assert len(result) == 2
+
+
+async def test_create_payment_method_returns_active_and_persists(db_session: AsyncSession):
+    """create_payment_method returns model with active=True and persists."""
+    row = await create_payment_method(db_session, name="UPI", currency="INR")
+    assert row.id is not None
+    assert row.name == "UPI"
+    assert row.currency == "INR"
+    assert row.active is True
+    assert row.created_at is not None
+    # Persisted: can be listed
+    await db_session.flush()
+    listed = await list_payment_methods(db_session, active_only=True)
+    assert any(r.id == row.id for r in listed)
