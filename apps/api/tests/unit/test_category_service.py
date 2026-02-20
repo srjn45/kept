@@ -10,6 +10,7 @@ from app.services.category import (
     create_category,
     get_category,
     list_categories,
+    soft_delete_category,
     update_category,
 )
 
@@ -181,3 +182,37 @@ async def test_update_category_strips_whitespace(
     assert result is not None
     assert result.name == "Food"
     assert result.color == "#abc"
+
+
+async def test_soft_delete_category_returns_none_when_not_found(
+    db_session: AsyncSession,
+):
+    """soft_delete_category returns None when id does not exist."""
+    result = await soft_delete_category(db_session, uuid.uuid4())
+    assert result is None
+
+
+async def test_soft_delete_category_sets_active_false_and_returns(
+    db_session: AsyncSession,
+    category_active: Category,
+):
+    """soft_delete_category sets active=False and returns the model."""
+    result = await soft_delete_category(db_session, category_active.id)
+    assert result is not None
+    assert result.id == category_active.id
+    assert result.active is False
+    fetched = await get_category(db_session, category_active.id)
+    assert fetched is not None and fetched.active is False
+    listed = await list_categories(db_session, active_only=True)
+    assert category_active.id not in [r.id for r in listed]
+
+
+async def test_soft_delete_category_idempotent_when_already_inactive(
+    db_session: AsyncSession,
+    category_inactive: Category,
+):
+    """soft_delete_category is idempotent when already inactive."""
+    result = await soft_delete_category(db_session, category_inactive.id)
+    assert result is not None
+    assert result.id == category_inactive.id
+    assert result.active is False

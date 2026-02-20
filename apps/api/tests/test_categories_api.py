@@ -261,3 +261,36 @@ async def test_put_category_422_invalid_uuid(client: AsyncClient):
         json={"name": "Food", "color": "#fff"},
     )
     assert response.status_code == 422
+
+
+# --- DELETE /api/v1/categories/{id} (Step 10) ---
+
+
+async def test_delete_category_200_soft_deletes(
+    client: AsyncClient,
+    one_active_category: Category,
+):
+    """DELETE with existing id returns 200 and data with active=false; GET same id returns active false."""
+    response = await client.delete(f"/api/v1/categories/{one_active_category.id}")
+    assert response.status_code == 200
+    body = response.json()
+    assert "data" in body
+    data = body["data"]
+    assert data["id"] == str(one_active_category.id)
+    assert data["active"] is False
+    get_resp = await client.get(f"/api/v1/categories/{one_active_category.id}")
+    assert get_resp.status_code == 200
+    assert get_resp.json()["data"]["active"] is False
+
+
+async def test_delete_category_404_not_found(client: AsyncClient):
+    """DELETE with non-existent id returns 404."""
+    response = await client.delete(f"/api/v1/categories/{uuid.uuid4()}")
+    assert response.status_code == 404
+    assert "detail" in response.json()
+
+
+async def test_delete_category_422_invalid_uuid(client: AsyncClient):
+    """DELETE with invalid UUID path returns 422."""
+    response = await client.delete("/api/v1/categories/not-a-uuid")
+    assert response.status_code == 422

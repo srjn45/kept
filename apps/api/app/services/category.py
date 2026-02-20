@@ -1,4 +1,4 @@
-"""Category service: list, get, create (update, delete in later steps)."""
+"""Category service: list, get, create, update, soft delete."""
 
 import uuid
 
@@ -46,6 +46,20 @@ async def update_category(
         return None
     row.name = name.strip()
     row.color = color.strip() if color else None
+    await session.flush()
+    await session.refresh(row)
+    return row
+
+
+async def soft_delete_category(
+    session: AsyncSession,
+    id: uuid.UUID,
+) -> Category | None:
+    """Soft delete a category by id (set active=False). Idempotent if already inactive. Returns None if not found."""
+    row = await get_category(session, id)
+    if row is None:
+        return None
+    row.active = False
     await session.flush()
     await session.refresh(row)
     return row

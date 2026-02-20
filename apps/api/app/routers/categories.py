@@ -1,4 +1,4 @@
-"""Categories API: GET list, GET one, POST (PUT, DELETE in later steps)."""
+"""Categories API: GET list, GET one, POST, PUT, DELETE."""
 
 import uuid
 
@@ -12,6 +12,7 @@ from app.services.category import (
     create_category,
     get_category,
     list_categories,
+    soft_delete_category,
     update_category,
 )
 
@@ -93,6 +94,31 @@ async def put_category(
         name=body.name,
         color=body.color,
     )
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
+        )
+    payload = CategoryResponse.model_validate(row).model_dump(
+        mode="json", by_alias=True
+    )
+    return {"data": payload}
+
+
+@router.delete(
+    "/{id}",
+    response_model=dict,
+    responses={
+        200: {"description": "Category soft-deleted"},
+        404: {"description": "Category not found"},
+        422: {"description": "Invalid UUID format"},
+    },
+)
+async def delete_category(
+    id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+) -> dict:
+    """Soft delete a category by id (set active=False)."""
+    row = await soft_delete_category(session, id)
     if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
