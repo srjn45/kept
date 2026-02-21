@@ -11,12 +11,12 @@ After **any backend code change** (in `apps/api/` or its tests), follow this flo
 
 1. **Make code changes** (app code or tests).
 2. **Write tests** (unit and/or integration as needed).
-3. **Run and debug tests:** `uv run pytest tests/ -v` — fix until all pass.
+3. **Run and debug tests:** `uv run pytest tests/ -v` — fix until all pass; **fix any warnings** (e.g. deprecations) so test output is clean.
 4. **Run lint and debug:**  
    - `uv run ruff check .`  
    - `uv run ruff format --check .` (or `uv run ruff format .` to fix)  
    - `uv run mypy app`  
-   Fix any reported issues.
-5. **Run pre-commit and debug:** `uv run pre-commit run --all-files` — fix any failing hook until all pass.
+   Fix any reported issues **and any warnings** (e.g. deprecation, type hints).
+5. **Run pre-commit and debug:** `uv run pre-commit run --all-files` — fix any failing hook until all pass; **fix warnings** from any step (lint, test, or build) so the run finishes with no warnings.
 
-Always run pre-commit (`uv run pre-commit run --all-files`) on BE code changes **after tests are successful** so the commit stays clean.
+Always run pre-commit (`uv run pre-commit run --all-files`) on BE code changes **after tests are successful** so the commit stays clean. **Treat warnings as something to fix** during lint, test, or build—don’t leave deprecation or other warnings in the output.
