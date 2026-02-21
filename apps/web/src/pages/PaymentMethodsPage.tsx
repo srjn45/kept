@@ -6,6 +6,9 @@ import { z } from 'zod'
 import { api } from '@/api/client'
 import type { PaymentMethod } from '@/types/payment-method'
 import type { components } from '@/api/schema'
+import { QueryErrorAlert } from '@/components/QueryErrorAlert'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useFocusModal } from '@/hooks/useFocusModal'
 
 const paymentMethodFormSchema = z.object({
   name: z
@@ -43,10 +46,12 @@ function usePaymentMethods() {
 
 export function PaymentMethodsPage() {
   const queryClient = useQueryClient()
-  const { data: items = [], isLoading, error } = usePaymentMethods()
+  const { data: items = [], isLoading, error, refetch } = usePaymentMethods()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<PaymentMethod | null>(null)
+  const formModalRef = useFocusModal(modalOpen)
+  const deleteModalRef = useFocusModal(!!deleteTarget)
 
   const createMutation = useMutation({
     mutationFn: async (body: components['schemas']['PaymentMethodCreate']) => {
@@ -159,14 +164,13 @@ export function PaymentMethodsPage() {
         </div>
       </div>
 
-      {error && (
-        <div className="rounded-md bg-red-50 p-4 text-sm text-red-800" role="alert">
-          {error.message}
-        </div>
-      )}
+      {error && <QueryErrorAlert message={error.message} onRetry={() => refetch()} />}
 
       {isLoading ? (
-        <p className="text-gray-500">Loading…</p>
+        <div className="flex items-center gap-2 text-gray-500">
+          <LoadingSpinner />
+          <span>Loading…</span>
+        </div>
       ) : items.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
           <p className="text-gray-600">
@@ -241,7 +245,7 @@ export function PaymentMethodsPage() {
           aria-modal="true"
           aria-labelledby="payment-method-modal-title"
         >
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+          <div ref={formModalRef} className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
             <h2 id="payment-method-modal-title" className="text-lg font-semibold text-gray-900">
               {editingId ? 'Edit payment method' : 'Add payment method'}
             </h2>
@@ -318,7 +322,7 @@ export function PaymentMethodsPage() {
           aria-modal="true"
           aria-labelledby="delete-confirm-title"
         >
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+          <div ref={deleteModalRef} className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
             <h2 id="delete-confirm-title" className="text-lg font-semibold text-gray-900">
               Remove payment method?
             </h2>

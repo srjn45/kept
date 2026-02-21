@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { useState, useMemo } from 'react'
 import { api } from '@/api/client'
 import type { LedgerEntry } from '@/types/ledger-entry'
+import { QueryErrorAlert } from '@/components/QueryErrorAlert'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 const DASHBOARD_QUERY_KEY = ['analytics', 'dashboard'] as const
 const MAX_RANGE_DAYS = 366
@@ -129,13 +131,14 @@ export function DashboardPage() {
       </div>
 
       {dashboard.error && (
-        <div className="rounded-md bg-red-50 p-4 text-sm text-red-800" role="alert">
-          {dashboard.error.message}
-        </div>
+        <QueryErrorAlert message={dashboard.error.message} onRetry={() => dashboard.refetch()} />
       )}
 
       {dashboard.isLoading && rangeValid ? (
-        <p className="text-gray-500">Loading…</p>
+        <div className="flex items-center gap-2 text-gray-500">
+          <LoadingSpinner />
+          <span>Loading…</span>
+        </div>
       ) : !rangeValid ? (
         <p className="text-gray-500">Set a valid date range (max {MAX_RANGE_DAYS} days).</p>
       ) : dashboard.error ? null : dashboard.data ? (

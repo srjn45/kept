@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { LedgerPage } from './LedgerPage'
 import { renderWithProviders } from '@/test/utils'
 import { api } from '@/api/client'
@@ -51,6 +52,14 @@ function defaultGetMock(path: string) {
   return Promise.resolve({ data: {}, error: undefined, response: {} as Response } as never)
 }
 
+function renderLedger() {
+  return renderWithProviders(
+    <MemoryRouter>
+      <LedgerPage />
+    </MemoryRouter>
+  )
+}
+
 describe('LedgerPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -59,7 +68,7 @@ describe('LedgerPage', () => {
   })
 
   it('shows page title and subtitle', async () => {
-    renderWithProviders(<LedgerPage />)
+    renderLedger()
     expect(screen.getByRole('heading', { name: /^ledger$/i })).toBeInTheDocument()
     expect(
       screen.getByText(/all your expense and refund entries\. newest first/i)
@@ -67,7 +76,7 @@ describe('LedgerPage', () => {
   })
 
   it('shows empty state when no entries', async () => {
-    renderWithProviders(<LedgerPage />)
+    renderLedger()
     expect(
       await screen.findByText(/no entries yet\. add your first expense or refund/i)
     ).toBeInTheDocument()
@@ -102,7 +111,7 @@ describe('LedgerPage', () => {
       }
       return defaultGetMock(path)
     })
-    renderWithProviders(<LedgerPage />)
+    renderLedger()
     await waitFor(() => {
       expect(screen.getByText('Coffee')).toBeInTheDocument()
     })
@@ -142,7 +151,7 @@ describe('LedgerPage', () => {
       }
       return defaultGetMock(path)
     })
-    renderWithProviders(<LedgerPage />)
+    renderLedger()
     await waitFor(() => {
       expect(screen.getByText('Item')).toBeInTheDocument()
     })
@@ -151,7 +160,7 @@ describe('LedgerPage', () => {
 
   it('opens add entry modal when Add entry is clicked', async () => {
     const user = userEvent.setup()
-    renderWithProviders(<LedgerPage />)
+    renderLedger()
     await waitFor(() => {
       expect(screen.getByText(/no entries yet/i)).toBeInTheDocument()
     })
@@ -161,5 +170,58 @@ describe('LedgerPage', () => {
     expect(screen.getByPlaceholderText(/what was this for/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /create entry/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument()
+  })
+
+  it('shows onboarding banner when no payment methods', async () => {
+    mockApi.GET.mockImplementation((path: string) => {
+      if (path === '/api/v1/payment-methods') {
+        return Promise.resolve({
+          data: { data: [] as PaymentMethod[] },
+          error: undefined,
+          response: {} as Response,
+        } as never)
+      }
+      return defaultGetMock(path)
+    })
+    renderLedger()
+    await waitFor(() => {
+      expect(screen.getByText(/add at least one/i)).toBeInTheDocument()
+    })
+    expect(screen.getByRole('link', { name: /payment method/i })).toHaveAttribute(
+      'href',
+      '/payment-methods'
+    )
+    expect(screen.getByRole('link', { name: /category/i })).toHaveAttribute('href', '/categories')
+  })
+
+  it('shows onboarding banner when no categories', async () => {
+    mockApi.GET.mockImplementation((path: string) => {
+      if (path === '/api/v1/categories') {
+        return Promise.resolve({
+          data: { data: [] as Category[] },
+          error: undefined,
+          response: {} as Response,
+        } as never)
+      }
+      return defaultGetMock(path)
+    })
+    renderLedger()
+    await waitFor(() => {
+      expect(screen.getByText(/add at least one/i)).toBeInTheDocument()
+    })
+  })
+
+  it('shows error with Retry when ledger query fails', async () => {
+    mockApi.GET.mockImplementation((path: string) => {
+      if (path === '/api/v1/ledger-entries') {
+        return Promise.reject(new Error('Network error'))
+      }
+      return defaultGetMock(path)
+    })
+    renderLedger()
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/network error/i)
+    })
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
   })
 })

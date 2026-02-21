@@ -2,6 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState, useMemo } from 'react'
 import { useForm, Controller } from 'react-hook-form'
+import { Link } from 'react-router-dom'
 import { z } from 'zod'
 import { api } from '@/api/client'
 import type { LedgerEntry } from '@/types/ledger-entry'
@@ -9,6 +10,9 @@ import type { PaymentMethod } from '@/types/payment-method'
 import type { Category } from '@/types/category'
 import type { components } from '@/api/schema'
 import { TagInput } from '@/components/TagInput'
+import { QueryErrorAlert } from '@/components/QueryErrorAlert'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useFocusModal } from '@/hooks/useFocusModal'
 
 const ledgerEntryFormSchema = z.object({
   date: z.string().min(1, 'Date is required'),
@@ -260,6 +264,10 @@ export function LedgerPage() {
   }
 
   const isPending = createMutation.isPending || updateMutation.isPending
+  const ledgerModalRef = useFocusModal(modalOpen)
+  const deleteModalRef = useFocusModal(!!deleteTarget)
+
+  const showOnboardingBanner = paymentMethods.length === 0 || categories.length === 0
 
   return (
     <div className="space-y-6">
@@ -280,6 +288,25 @@ export function LedgerPage() {
           </button>
         </div>
       </div>
+
+      {showOnboardingBanner && (
+        <div
+          className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+          role="status"
+        >
+          <p>
+            Add at least one{' '}
+            <Link to="/payment-methods" className="font-medium underline hover:no-underline">
+              payment method
+            </Link>{' '}
+            and one{' '}
+            <Link to="/categories" className="font-medium underline hover:no-underline">
+              category
+            </Link>{' '}
+            to start recording expenses.
+          </p>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">
@@ -364,13 +391,17 @@ export function LedgerPage() {
       </div>
 
       {ledgerQuery.error && (
-        <div className="rounded-md bg-red-50 p-4 text-sm text-red-800" role="alert">
-          {ledgerQuery.error.message}
-        </div>
+        <QueryErrorAlert
+          message={ledgerQuery.error.message}
+          onRetry={() => ledgerQuery.refetch()}
+        />
       )}
 
       {ledgerQuery.isLoading ? (
-        <p className="text-gray-500">Loading…</p>
+        <div className="flex items-center gap-2 text-gray-500">
+          <LoadingSpinner />
+          <span>Loading…</span>
+        </div>
       ) : entries.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
           <p className="text-gray-600">
@@ -509,7 +540,10 @@ export function LedgerPage() {
           aria-modal="true"
           aria-labelledby="ledger-entry-modal-title"
         >
-          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+          <div
+            ref={ledgerModalRef}
+            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+          >
             <h2 id="ledger-entry-modal-title" className="text-lg font-semibold text-gray-900">
               {editingId ? 'Edit entry' : 'Add entry'}
             </h2>
@@ -666,7 +700,7 @@ export function LedgerPage() {
           aria-modal="true"
           aria-labelledby="delete-entry-confirm-title"
         >
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+          <div ref={deleteModalRef} className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
             <h2 id="delete-entry-confirm-title" className="text-lg font-semibold text-gray-900">
               Delete entry?
             </h2>

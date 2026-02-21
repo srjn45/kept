@@ -15,6 +15,8 @@ import {
   Cell,
 } from 'recharts'
 import { api } from '@/api/client'
+import { QueryErrorAlert } from '@/components/QueryErrorAlert'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 const MAX_RANGE_DAYS = 366
 const DEFAULT_CURRENCY = 'INR'
@@ -252,11 +254,14 @@ export function ChartsPage() {
               )}
             </div>
             {monthly.error && (
-              <div className="rounded-md bg-red-50 p-4 text-sm text-red-800" role="alert">
-                {monthly.error.message}
+              <QueryErrorAlert message={monthly.error.message} onRetry={() => monthly.refetch()} />
+            )}
+            {monthly.isLoading && monthlyRangeValid && (
+              <div className="flex items-center gap-2 text-gray-500">
+                <LoadingSpinner />
+                <span>Loading…</span>
               </div>
             )}
-            {monthly.isLoading && monthlyRangeValid && <p className="text-gray-500">Loading…</p>}
             {monthlyRangeValid && !monthly.isLoading && !monthly.error && (
               <>
                 {monthly.data && monthly.data.length > 0 ? (
@@ -363,11 +368,17 @@ export function ChartsPage() {
               </div>
             </div>
             {byCategory.error && (
-              <div className="rounded-md bg-red-50 p-4 text-sm text-red-800" role="alert">
-                {byCategory.error.message}
+              <QueryErrorAlert
+                message={byCategory.error.message}
+                onRetry={() => byCategory.refetch()}
+              />
+            )}
+            {byCategory.isLoading && (
+              <div className="flex items-center gap-2 text-gray-500">
+                <LoadingSpinner />
+                <span>Loading…</span>
               </div>
             )}
-            {byCategory.isLoading && <p className="text-gray-500">Loading…</p>}
             {!byCategory.isLoading && !byCategory.error && (
               <>
                 {byCategory.data && byCategory.data.length > 0 ? (
@@ -496,11 +507,17 @@ export function ChartsPage() {
               </div>
             </div>
             {byPayment.error && (
-              <div className="rounded-md bg-red-50 p-4 text-sm text-red-800" role="alert">
-                {byPayment.error.message}
+              <QueryErrorAlert
+                message={byPayment.error.message}
+                onRetry={() => byPayment.refetch()}
+              />
+            )}
+            {byPayment.isLoading && (
+              <div className="flex items-center gap-2 text-gray-500">
+                <LoadingSpinner />
+                <span>Loading…</span>
               </div>
             )}
-            {byPayment.isLoading && <p className="text-gray-500">Loading…</p>}
             {!byPayment.isLoading && !byPayment.error && (
               <>
                 {byPayment.data && byPayment.data.length > 0 ? (

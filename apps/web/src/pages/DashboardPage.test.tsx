@@ -242,11 +242,12 @@ describe('DashboardPage', () => {
     })
   })
 
-  it('shows error message when API returns error', async () => {
+  it('shows error message and Retry when API returns error', async () => {
     mockApi.GET.mockRejectedValue(new Error('Server error'))
     renderDashboard()
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent(/server error/i)
     })
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
   })
 })

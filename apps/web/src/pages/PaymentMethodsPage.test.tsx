@@ -77,4 +77,13 @@ describe('PaymentMethodsPage', () => {
     expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument()
   })
+
+  it('shows error with Retry when payment methods query fails', async () => {
+    mockApi.GET.mockRejectedValue(new Error('Failed to load'))
+    renderWithProviders(<PaymentMethodsPage />)
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/failed to load/i)
+    })
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
+  })
 })
