@@ -6,7 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_db
-from app.services.analytics import get_expense_by_category, get_monthly_expense
+from app.services.analytics import (
+    get_expense_by_category,
+    get_expense_by_payment_method,
+    get_monthly_expense,
+)
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -72,4 +76,28 @@ async def get_expense_by_category_route(
             detail="month must be a valid month in YYYY-MM format",
         )
     data = await get_expense_by_category(session, first_day)
+    return {"data": data}
+
+
+@router.get(
+    "/expense-by-payment-method",
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "Expense totals by payment method for the given month"},
+        422: {"description": "Validation error (missing or invalid month)"},
+    },
+)
+async def get_expense_by_payment_method_route(
+    session: AsyncSession = Depends(get_db),
+    month: str = Query(..., description="Month (YYYY-MM)"),
+) -> dict:
+    """Expense by payment method for the given month. Positive amounts only; excludes soft-deleted."""
+    try:
+        first_day = _parse_month(month)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="month must be a valid month in YYYY-MM format",
+        )
+    data = await get_expense_by_payment_method(session, first_day)
     return {"data": data}

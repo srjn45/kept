@@ -8,7 +8,11 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Category, PaymentMethod
-from app.services.analytics import get_expense_by_category, get_monthly_expense
+from app.services.analytics import (
+    get_expense_by_category,
+    get_expense_by_payment_method,
+    get_monthly_expense,
+)
 from app.services.ledger_entry import create_ledger_entry
 
 
@@ -286,6 +290,141 @@ async def test_get_expense_by_category_only_in_month(
         db_session, first_day_of_month=date(2025, 1, 1)
     )
     result_feb = await get_expense_by_category(
+        db_session, first_day_of_month=date(2025, 2, 1)
+    )
+    assert result_jan == []
+    assert len(result_feb) == 1
+    assert result_feb[0]["amount"] == 100.0
+
+
+# --- get_expense_by_payment_method ---
+
+
+@pytest_asyncio.fixture
+async def second_payment_method(db_session: AsyncSession) -> PaymentMethod:
+    """Second active payment method."""
+    row = PaymentMethod(
+        id=uuid4(),
+        name="UPI",
+        currency="INR",
+        active=True,
+    )
+    db_session.add(row)
+    await db_session.flush()
+    return row
+
+
+async def test_get_expense_by_payment_method_empty(db_session: AsyncSession):
+    """get_expense_by_payment_method with no entries returns empty list."""
+    result = await get_expense_by_payment_method(
+        db_session, first_day_of_month=date(2025, 1, 1)
+    )
+    assert result == []
+
+
+async def test_get_expense_by_payment_method_groups_and_sum_positive_only(
+    db_session: AsyncSession,
+    active_category: Category,
+    active_payment_method: PaymentMethod,
+    second_payment_method: PaymentMethod,
+):
+    """get_expense_by_payment_method groups by payment method; sums positive amounts only."""
+    await create_ledger_entry(
+        db_session,
+        date_=date(2025, 1, 10),
+        description="Card 1",
+        category_id=active_category.id,
+        payment_method_id=active_payment_method.id,
+        amount=Decimal("50"),
+    )
+    await create_ledger_entry(
+        db_session,
+        date_=date(2025, 1, 20),
+        description="Card 2",
+        category_id=active_category.id,
+        payment_method_id=active_payment_method.id,
+        amount=Decimal("30"),
+    )
+    await create_ledger_entry(
+        db_session,
+        date_=date(2025, 1, 15),
+        description="UPI",
+        category_id=active_category.id,
+        payment_method_id=second_payment_method.id,
+        amount=Decimal("25"),
+    )
+    await create_ledger_entry(
+        db_session,
+        date_=date(2025, 1, 5),
+        description="Refund (ignored)",
+        category_id=active_category.id,
+        payment_method_id=active_payment_method.id,
+        amount=Decimal("-10"),
+    )
+    await db_session.flush()
+    result = await get_expense_by_payment_method(
+        db_session, first_day_of_month=date(2025, 1, 1)
+    )
+    assert len(result) == 2
+    by_name = {r["paymentMethodName"]: r for r in result}
+    assert by_name["Card"]["paymentMethodId"] == str(active_payment_method.id)
+    assert by_name["Card"]["amount"] == 80.0
+    assert by_name["UPI"]["paymentMethodId"] == str(second_payment_method.id)
+    assert by_name["UPI"]["amount"] == 25.0
+
+
+async def test_get_expense_by_payment_method_excludes_soft_deleted(
+    db_session: AsyncSession,
+    active_category: Category,
+    active_payment_method: PaymentMethod,
+):
+    """get_expense_by_payment_method excludes entries with deleted_at set."""
+    await create_ledger_entry(
+        db_session,
+        date_=date(2025, 1, 10),
+        description="Kept",
+        category_id=active_category.id,
+        payment_method_id=active_payment_method.id,
+        amount=Decimal("40"),
+    )
+    entry, _, _, _ = await create_ledger_entry(
+        db_session,
+        date_=date(2025, 1, 20),
+        description="Deleted",
+        category_id=active_category.id,
+        payment_method_id=active_payment_method.id,
+        amount=Decimal("60"),
+    )
+    await db_session.flush()
+    entry.deleted_at = datetime.now(UTC)
+    await db_session.flush()
+    result = await get_expense_by_payment_method(
+        db_session, first_day_of_month=date(2025, 1, 1)
+    )
+    assert len(result) == 1
+    assert result[0]["paymentMethodName"] == "Card"
+    assert result[0]["amount"] == 40.0
+
+
+async def test_get_expense_by_payment_method_only_in_month(
+    db_session: AsyncSession,
+    active_category: Category,
+    active_payment_method: PaymentMethod,
+):
+    """get_expense_by_payment_method only includes entries in the given month."""
+    await create_ledger_entry(
+        db_session,
+        date_=date(2025, 2, 10),
+        description="February",
+        category_id=active_category.id,
+        payment_method_id=active_payment_method.id,
+        amount=Decimal("100"),
+    )
+    await db_session.flush()
+    result_jan = await get_expense_by_payment_method(
+        db_session, first_day_of_month=date(2025, 1, 1)
+    )
+    result_feb = await get_expense_by_payment_method(
         db_session, first_day_of_month=date(2025, 2, 1)
     )
     assert result_jan == []

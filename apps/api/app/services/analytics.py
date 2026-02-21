@@ -7,7 +7,7 @@ from decimal import Decimal
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Category, LedgerEntry
+from app.models import Category, LedgerEntry, PaymentMethod
 
 
 async def get_monthly_expense(
@@ -106,6 +106,46 @@ async def get_expense_by_category(
         {
             "categoryId": str(row[0]),
             "categoryName": row[1],
+            "amount": float(row[2]),
+        }
+        for row in result.all()
+    ]
+
+
+async def get_expense_by_payment_method(
+    session: AsyncSession,
+    first_day_of_month: date,
+) -> list[dict[str, str | float]]:
+    """Expense totals by payment method for the given month (positive amounts only).
+    Excludes soft-deleted entries. Returns list of paymentMethodId, paymentMethodName, amount.
+    """
+    _, last_day = calendar.monthrange(first_day_of_month.year, first_day_of_month.month)
+    last_day_of_month = first_day_of_month.replace(day=last_day)
+
+    total = func.coalesce(func.sum(LedgerEntry.amount), Decimal("0")).label("amount")
+
+    q = (
+        select(
+            LedgerEntry.payment_method_id,
+            PaymentMethod.name.label("payment_method_name"),
+            total,
+        )
+        .select_from(LedgerEntry)
+        .join(PaymentMethod, LedgerEntry.payment_method_id == PaymentMethod.id)
+        .where(
+            LedgerEntry.deleted_at.is_(None),
+            LedgerEntry.date >= first_day_of_month,
+            LedgerEntry.date <= last_day_of_month,
+            LedgerEntry.amount > 0,
+        )
+        .group_by(LedgerEntry.payment_method_id, PaymentMethod.name)
+        .order_by(total.desc())
+    )
+    result = await session.execute(q)
+    return [
+        {
+            "paymentMethodId": str(row[0]),
+            "paymentMethodName": row[1],
             "amount": float(row[2]),
         }
         for row in result.all()
