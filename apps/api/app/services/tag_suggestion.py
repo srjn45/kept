@@ -1,9 +1,34 @@
-"""Tag suggestion service: get suggestions for autocomplete."""
+"""Tag suggestion service: get suggestions for autocomplete; upsert for ledger tags."""
+
+from datetime import UTC, datetime
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import TagSuggestion
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+async def upsert_tag_suggestions(
+    session: AsyncSession,
+    tags: list[str],
+) -> None:
+    """Upsert tag_suggestions for each tag (insert or update last_used_at)."""
+    now = _utc_now()
+    for tag_text in tags:
+        stmt = (
+            insert(TagSuggestion)
+            .values(tag_text=tag_text, last_used_at=now)
+            .on_conflict_do_update(
+                index_elements=["tag_text"],
+                set_={"last_used_at": now},
+            )
+        )
+        await session.execute(stmt)
 
 
 async def get_tag_suggestions(
