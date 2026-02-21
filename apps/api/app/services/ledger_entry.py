@@ -99,6 +99,58 @@ async def get_ledger_entry(
     return (row[0], row[1], row[2], row[3])
 
 
+async def update_ledger_entry(
+    session: AsyncSession,
+    id: UUID,
+    *,
+    date_: date,
+    description: str,
+    category_id: UUID,
+    payment_method_id: UUID,
+    amount: Decimal,
+    tags: list[str] | None = None,
+) -> tuple[LedgerEntry, str, str, str] | None:
+    """Update a ledger entry. Returns None if not found or soft-deleted.
+    Raises LedgerEntryError when category or payment method not found or inactive.
+    Upserts tag_suggestions for the new tag set.
+    """
+    row = await get_ledger_entry(session, id)
+    if row is None:
+        return None
+    entry, _, _, _ = row
+
+    category = await category_service.get_category(session, category_id)
+    if category is None:
+        raise LedgerEntryError("Category not found")
+    if not category.active:
+        raise LedgerEntryError("Category not found")
+    payment_method = await payment_method_service.get_payment_method(
+        session, payment_method_id
+    )
+    if payment_method is None:
+        raise LedgerEntryError("Payment method not found")
+    if not payment_method.active:
+        raise LedgerEntryError("Payment method not found")
+
+    tag_list = tags or []
+    entry.date = date_
+    entry.description = description.strip()
+    entry.category_id = category_id
+    entry.payment_method_id = payment_method_id
+    entry.amount = amount
+    entry.tags = tag_list
+    await session.flush()
+    if tag_list:
+        await tag_suggestion_service.upsert_tag_suggestions(session, tag_list)
+    await session.refresh(entry)
+    return (
+        entry,
+        category.name,
+        payment_method.name,
+        payment_method.currency,
+    )
+
+
 def _decode_cursor(cursor: str) -> tuple[date, UUID] | None:
     """Decode cursor to (date, id). Returns None if invalid."""
     try:

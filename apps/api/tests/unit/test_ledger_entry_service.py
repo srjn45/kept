@@ -1,4 +1,4 @@
-"""Unit tests for ledger entry service: create_ledger_entry, list_ledger_entries."""
+"""Unit tests for ledger entry service: create, get, update, list."""
 
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -14,6 +14,7 @@ from app.services.ledger_entry import (
     create_ledger_entry,
     get_ledger_entry,
     list_ledger_entries,
+    update_ledger_entry,
 )
 from app.services.tag_suggestion import get_tag_suggestions
 
@@ -444,6 +445,251 @@ async def test_list_ledger_entries_filter_tags_and(
     rows, _ = await list_ledger_entries(db_session, tags=["a", "b"], limit=50)
     assert len(rows) == 1
     assert rows[0][0].description == "Both"
+
+
+# --- update_ledger_entry ---
+
+
+async def test_update_ledger_entry_success(
+    db_session: AsyncSession,
+    active_category: Category,
+    active_payment_method: PaymentMethod,
+):
+    """update_ledger_entry updates entry and returns resolved names."""
+    entry, _, _, _ = await create_ledger_entry(
+        db_session,
+        date_=date(2025, 1, 10),
+        description="Original",
+        category_id=active_category.id,
+        payment_method_id=active_payment_method.id,
+        amount=Decimal("-5"),
+    )
+    await db_session.flush()
+    result = await update_ledger_entry(
+        db_session,
+        entry.id,
+        date_=date(2025, 2, 20),
+        description="Updated",
+        category_id=active_category.id,
+        payment_method_id=active_payment_method.id,
+        amount=Decimal("-15.00"),
+        tags=["updated-tag"],
+    )
+    assert result is not None
+    updated, cat_name, pm_name, currency = result
+    assert updated.id == entry.id
+    assert updated.date == date(2025, 2, 20)
+    assert updated.description == "Updated"
+    assert updated.amount == Decimal("-15.00")
+    assert updated.tags == ["updated-tag"]
+    assert cat_name == "Food"
+    assert pm_name == "Card"
+    assert currency == "INR"
+
+
+async def test_update_ledger_entry_upserts_tag_suggestions(
+    db_session: AsyncSession,
+    active_category: Category,
+    active_payment_method: PaymentMethod,
+):
+    """update_ledger_entry upserts tag_suggestions for new tags."""
+    entry, _, _, _ = await create_ledger_entry(
+        db_session,
+        date_=date(2025, 1, 15),
+        description="Entry",
+        category_id=active_category.id,
+        payment_method_id=active_payment_method.id,
+        amount=Decimal("-1"),
+    )
+    await db_session.flush()
+    await update_ledger_entry(
+        db_session,
+        entry.id,
+        date_=entry.date,
+        description=entry.description,
+        category_id=active_category.id,
+        payment_method_id=active_payment_method.id,
+        amount=entry.amount,
+        tags=["put-tag-suggestion"],
+    )
+    await db_session.flush()
+    suggestions = await get_tag_suggestions(db_session, q=None)
+    assert "put-tag-suggestion" in suggestions
+
+
+async def test_update_ledger_entry_returns_none_when_not_found(
+    db_session: AsyncSession,
+    active_category: Category,
+    active_payment_method: PaymentMethod,
+):
+    """update_ledger_entry returns None for non-existent id."""
+    result = await update_ledger_entry(
+        db_session,
+        uuid4(),
+        date_=date(2025, 1, 15),
+        description="X",
+        category_id=active_category.id,
+        payment_method_id=active_payment_method.id,
+        amount=Decimal("-1"),
+    )
+    assert result is None
+
+
+async def test_update_ledger_entry_returns_none_when_deleted(
+    db_session: AsyncSession,
+    active_category: Category,
+    active_payment_method: PaymentMethod,
+):
+    """update_ledger_entry returns None when entry is soft-deleted."""
+    entry, _, _, _ = await create_ledger_entry(
+        db_session,
+        date_=date(2025, 1, 15),
+        description="Entry",
+        category_id=active_category.id,
+        payment_method_id=active_payment_method.id,
+        amount=Decimal("-1"),
+    )
+    await db_session.flush()
+    entry.deleted_at = datetime.now(UTC)
+    await db_session.flush()
+    result = await update_ledger_entry(
+        db_session,
+        entry.id,
+        date_=date(2025, 1, 15),
+        description="X",
+        category_id=active_category.id,
+        payment_method_id=active_payment_method.id,
+        amount=Decimal("-1"),
+    )
+    assert result is None
+
+
+async def test_update_ledger_entry_category_not_found(
+    db_session: AsyncSession,
+    active_category: Category,
+    active_payment_method: PaymentMethod,
+):
+    """update_ledger_entry raises LedgerEntryError when category not found."""
+    entry, _, _, _ = await create_ledger_entry(
+        db_session,
+        date_=date(2025, 1, 15),
+        description="Entry",
+        category_id=active_category.id,
+        payment_method_id=active_payment_method.id,
+        amount=Decimal("-1"),
+    )
+    await db_session.flush()
+    with pytest.raises(LedgerEntryError) as exc_info:
+        await update_ledger_entry(
+            db_session,
+            entry.id,
+            date_=entry.date,
+            description=entry.description,
+            category_id=uuid4(),
+            payment_method_id=active_payment_method.id,
+            amount=entry.amount,
+        )
+    assert "Category" in exc_info.value.message
+
+
+async def test_update_ledger_entry_payment_method_not_found(
+    db_session: AsyncSession,
+    active_category: Category,
+    active_payment_method: PaymentMethod,
+):
+    """update_ledger_entry raises LedgerEntryError when payment method not found."""
+    entry, _, _, _ = await create_ledger_entry(
+        db_session,
+        date_=date(2025, 1, 15),
+        description="Entry",
+        category_id=active_category.id,
+        payment_method_id=active_payment_method.id,
+        amount=Decimal("-1"),
+    )
+    await db_session.flush()
+    with pytest.raises(LedgerEntryError) as exc_info:
+        await update_ledger_entry(
+            db_session,
+            entry.id,
+            date_=entry.date,
+            description=entry.description,
+            category_id=active_category.id,
+            payment_method_id=uuid4(),
+            amount=entry.amount,
+        )
+    assert "Payment method" in exc_info.value.message
+
+
+async def test_update_ledger_entry_category_inactive(
+    db_session: AsyncSession,
+    active_category: Category,
+    active_payment_method: PaymentMethod,
+):
+    """update_ledger_entry raises LedgerEntryError when new category is inactive."""
+    inactive_cat = Category(
+        id=uuid4(),
+        name="Old",
+        color=None,
+        active=False,
+    )
+    db_session.add(inactive_cat)
+    await db_session.flush()
+    entry, _, _, _ = await create_ledger_entry(
+        db_session,
+        date_=date(2025, 1, 15),
+        description="Entry",
+        category_id=active_category.id,
+        payment_method_id=active_payment_method.id,
+        amount=Decimal("-1"),
+    )
+    await db_session.flush()
+    with pytest.raises(LedgerEntryError) as exc_info:
+        await update_ledger_entry(
+            db_session,
+            entry.id,
+            date_=entry.date,
+            description=entry.description,
+            category_id=inactive_cat.id,
+            payment_method_id=active_payment_method.id,
+            amount=entry.amount,
+        )
+    assert "Category" in exc_info.value.message
+
+
+async def test_update_ledger_entry_payment_method_inactive(
+    db_session: AsyncSession,
+    active_category: Category,
+    active_payment_method: PaymentMethod,
+):
+    """update_ledger_entry raises LedgerEntryError when new payment method is inactive."""
+    inactive_pm = PaymentMethod(
+        id=uuid4(),
+        name="Old",
+        currency="INR",
+        active=False,
+    )
+    db_session.add(inactive_pm)
+    await db_session.flush()
+    entry, _, _, _ = await create_ledger_entry(
+        db_session,
+        date_=date(2025, 1, 15),
+        description="Entry",
+        category_id=active_category.id,
+        payment_method_id=active_payment_method.id,
+        amount=Decimal("-1"),
+    )
+    await db_session.flush()
+    with pytest.raises(LedgerEntryError) as exc_info:
+        await update_ledger_entry(
+            db_session,
+            entry.id,
+            date_=entry.date,
+            description=entry.description,
+            category_id=active_category.id,
+            payment_method_id=inactive_pm.id,
+            amount=entry.amount,
+        )
+    assert "Payment method" in exc_info.value.message
 
 
 async def test_list_ledger_entries_invalid_cursor_returns_first_page(

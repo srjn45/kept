@@ -1,4 +1,4 @@
-"""Ledger entries API: POST, GET list (get by id, put, delete in later steps)."""
+"""Ledger entries API: POST, GET list, GET by id, PUT (delete in later steps)."""
 
 from datetime import date
 from typing import Literal
@@ -15,6 +15,7 @@ from app.services.ledger_entry import (
     create_ledger_entry,
     get_ledger_entry,
     list_ledger_entries,
+    update_ledger_entry,
 )
 
 router = APIRouter(prefix="/ledger-entries", tags=["ledger-entries"])
@@ -97,6 +98,62 @@ async def get_ledger_entry_by_id(
 ) -> dict:
     """Get a single ledger entry by id. Returns 404 if not found or soft-deleted."""
     row = await get_ledger_entry(session, id)
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ledger entry not found",
+        )
+    entry, category_name, payment_method_name, currency = row
+    payload = LedgerEntryResponse(
+        id=entry.id,
+        date=entry.date,
+        description=entry.description,
+        categoryId=entry.category_id,
+        categoryName=category_name,
+        paymentMethodId=entry.payment_method_id,
+        paymentMethodName=payment_method_name,
+        currency=currency,
+        amount=entry.amount,
+        tags=entry.tags,
+        created_at=entry.created_at,
+        updated_at=entry.updated_at,
+    ).model_dump(mode="json", by_alias=True)
+    return {"data": payload}
+
+
+@router.put(
+    "/{id}",
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "Ledger entry updated"},
+        404: {
+            "description": "Entry not found, deleted, or category/payment method invalid"
+        },
+        422: {"description": "Validation error"},
+    },
+)
+async def put_ledger_entry(
+    id: UUID,
+    body: LedgerEntryCreate,
+    session: AsyncSession = Depends(get_db),
+) -> dict:
+    """Update a ledger entry. Same body as POST. Returns 404 if not found or soft-deleted."""
+    try:
+        row = await update_ledger_entry(
+            session,
+            id,
+            date_=body.date,
+            description=body.description,
+            category_id=body.categoryId,
+            payment_method_id=body.paymentMethodId,
+            amount=body.amount,
+            tags=body.tags,
+        )
+    except LedgerEntryError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        ) from e
     if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

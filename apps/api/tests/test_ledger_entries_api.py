@@ -692,3 +692,205 @@ async def test_get_ledger_entry_by_id_422_invalid_uuid(client: AsyncClient):
     """GET /ledger-entries/{id} with invalid UUID returns 422."""
     response = await client.get("/api/v1/ledger-entries/not-a-uuid")
     assert response.status_code == 422
+
+
+# --- PUT /api/v1/ledger-entries/{id} ---
+
+
+async def test_put_ledger_entry_200_valid_update(
+    client: AsyncClient,
+    one_active_category: Category,
+    one_active_payment_method: PaymentMethod,
+):
+    """PUT with valid body updates entry; response reflects changes; tag_suggestions updated."""
+    create_resp = await client.post(
+        "/api/v1/ledger-entries",
+        json=_valid_payload(
+            category_id=one_active_category.id,
+            payment_method_id=one_active_payment_method.id,
+        )
+        | {"description": "Original"},
+    )
+    assert create_resp.status_code == 201
+    entry_id = create_resp.json()["data"]["id"]
+    update_payload = {
+        **_valid_payload(
+            category_id=one_active_category.id,
+            payment_method_id=one_active_payment_method.id,
+        ),
+        "date": "2025-03-01",
+        "description": "Updated via PUT",
+        "amount": "-99.99",
+        "tags": ["put-tag"],
+    }
+    response = await client.put(
+        f"/api/v1/ledger-entries/{entry_id}",
+        json=update_payload,
+    )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["id"] == entry_id
+    assert data["date"] == "2025-03-01"
+    assert data["description"] == "Updated via PUT"
+    assert data["amount"] == "-99.99"
+    assert data["tags"] == ["put-tag"]
+    suggestions_resp = await client.get("/api/v1/tag-suggestions")
+    assert suggestions_resp.status_code == 200
+    assert "put-tag" in suggestions_resp.json().get("suggestions", [])
+
+
+async def test_put_ledger_entry_404_not_found(
+    client: AsyncClient,
+    one_active_category: Category,
+    one_active_payment_method: PaymentMethod,
+):
+    """PUT with non-existent id returns 404."""
+    payload = _valid_payload(
+        category_id=one_active_category.id,
+        payment_method_id=one_active_payment_method.id,
+    )
+    response = await client.put(
+        f"/api/v1/ledger-entries/{uuid.uuid4()}",
+        json=payload,
+    )
+    assert response.status_code == 404
+    assert "detail" in response.json()
+
+
+async def test_put_ledger_entry_404_soft_deleted(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    one_active_category: Category,
+    one_active_payment_method: PaymentMethod,
+):
+    """PUT with soft-deleted entry id returns 404."""
+    from datetime import UTC, datetime
+
+    from sqlalchemy import update
+
+    from app.models import LedgerEntry
+
+    create_resp = await client.post(
+        "/api/v1/ledger-entries",
+        json=_valid_payload(
+            category_id=one_active_category.id,
+            payment_method_id=one_active_payment_method.id,
+        )
+        | {"description": "To delete"},
+    )
+    assert create_resp.status_code == 201
+    entry_id = create_resp.json()["data"]["id"]
+    await db_session.execute(
+        update(LedgerEntry)
+        .where(LedgerEntry.id == uuid.UUID(entry_id))
+        .values(deleted_at=datetime.now(UTC))
+    )
+    await db_session.flush()
+    response = await client.put(
+        f"/api/v1/ledger-entries/{entry_id}",
+        json=_valid_payload(
+            category_id=one_active_category.id,
+            payment_method_id=one_active_payment_method.id,
+        ),
+    )
+    assert response.status_code == 404
+    assert "detail" in response.json()
+
+
+async def test_put_ledger_entry_422_missing_description(
+    client: AsyncClient,
+    one_active_category: Category,
+    one_active_payment_method: PaymentMethod,
+):
+    """PUT without description returns 422."""
+    create_resp = await client.post(
+        "/api/v1/ledger-entries",
+        json=_valid_payload(
+            category_id=one_active_category.id,
+            payment_method_id=one_active_payment_method.id,
+        ),
+    )
+    assert create_resp.status_code == 201
+    entry_id = create_resp.json()["data"]["id"]
+    payload = _valid_payload(
+        category_id=one_active_category.id,
+        payment_method_id=one_active_payment_method.id,
+    )
+    del payload["description"]
+    response = await client.put(f"/api/v1/ledger-entries/{entry_id}", json=payload)
+    assert response.status_code == 422
+
+
+async def test_put_ledger_entry_422_empty_description(
+    client: AsyncClient,
+    one_active_category: Category,
+    one_active_payment_method: PaymentMethod,
+):
+    """PUT with empty description returns 422."""
+    create_resp = await client.post(
+        "/api/v1/ledger-entries",
+        json=_valid_payload(
+            category_id=one_active_category.id,
+            payment_method_id=one_active_payment_method.id,
+        ),
+    )
+    assert create_resp.status_code == 201
+    entry_id = create_resp.json()["data"]["id"]
+    payload = _valid_payload(
+        category_id=one_active_category.id,
+        payment_method_id=one_active_payment_method.id,
+    )
+    payload["description"] = "   "
+    response = await client.put(f"/api/v1/ledger-entries/{entry_id}", json=payload)
+    assert response.status_code == 422
+
+
+async def test_put_ledger_entry_422_invalid_amount(
+    client: AsyncClient,
+    one_active_category: Category,
+    one_active_payment_method: PaymentMethod,
+):
+    """PUT with invalid amount returns 422."""
+    create_resp = await client.post(
+        "/api/v1/ledger-entries",
+        json=_valid_payload(
+            category_id=one_active_category.id,
+            payment_method_id=one_active_payment_method.id,
+        ),
+    )
+    assert create_resp.status_code == 201
+    entry_id = create_resp.json()["data"]["id"]
+    payload = _valid_payload(
+        category_id=one_active_category.id,
+        payment_method_id=one_active_payment_method.id,
+    )
+    payload["amount"] = "not-a-number"
+    response = await client.put(f"/api/v1/ledger-entries/{entry_id}", json=payload)
+    assert response.status_code == 422
+
+
+async def test_put_ledger_entry_404_inactive_category(
+    client: AsyncClient,
+    one_active_category: Category,
+    one_inactive_category: Category,
+    one_active_payment_method: PaymentMethod,
+):
+    """PUT with inactive categoryId returns 404."""
+    create_resp = await client.post(
+        "/api/v1/ledger-entries",
+        json=_valid_payload(
+            category_id=one_active_category.id,
+            payment_method_id=one_active_payment_method.id,
+        ),
+    )
+    assert create_resp.status_code == 201
+    entry_id = create_resp.json()["data"]["id"]
+    response = await client.put(
+        f"/api/v1/ledger-entries/{entry_id}",
+        json=_valid_payload(
+            category_id=one_inactive_category.id,
+            payment_method_id=one_active_payment_method.id,
+        ),
+    )
+    assert response.status_code == 404
+    assert "detail" in response.json()
