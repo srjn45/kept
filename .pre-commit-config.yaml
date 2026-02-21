@@ -1,52 +1,46 @@
 # Pre-commit: run from repo root. Install with: cd apps/api && uv run pre-commit install
 # Requires: uv on PATH (e.g. PATH="$HOME/.local/bin:$PATH")
-# API app lives in apps/api; hooks run lint and tests there.
-# Web app lives in apps/web; hooks run lint, format check, and tests there when apps/web files change.
+# API hooks use: make -C apps/api <target>. Web hooks use: make -C apps/web <target>.
 
 repos:
   - repo: local
     hooks:
-      - id: ruff-check
-        name: ruff check
-        entry: bash -c 'cd apps/api && uv run ruff check .'
+      - id: fmt
+        name: BE fmt
+        entry: make -C apps/api fmt
         language: system
         pass_filenames: false
 
-      - id: ruff-format
-        name: ruff format
-        entry: bash -c 'cd apps/api && uv run ruff format --check .'
+      - id: lint
+        name: BE lint
+        entry: make -C apps/api lint
         language: system
         pass_filenames: false
 
-      - id: mypy
-        name: mypy
-        entry: bash -c 'cd apps/api && uv run mypy app'
-        language: system
-        pass_filenames: false
 
       - id: pytest
-        name: pytest
-        entry: bash -c 'cd apps/api && ENV_FILE=.env.test uv run pytest tests/ -v'
+        name: BE test
+        entry: make -C apps/api test
         language: system
         pass_filenames: false
 
-      - id: web-lint
-        name: web lint
-        entry: bash -c 'cd apps/web && npm run lint'
+      - id: web-format
+        name: FE fmt
+        entry: make -C apps/web format-check
         language: system
         pass_filenames: false
         files: ^apps/web/
 
-      - id: web-format
-        name: web format check
-        entry: bash -c 'cd apps/web && npm run format:check'
+      - id: web-lint
+        name: FE lint
+        entry: make -C apps/web lint
         language: system
         pass_filenames: false
         files: ^apps/web/
 
       - id: web-test
-        name: web test
-        entry: bash -c 'cd apps/web && npm run test'
+        name: FE test
+        entry: make -C apps/web test
         language: system
         pass_filenames: false
         files: ^apps/web/
