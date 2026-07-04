@@ -259,6 +259,7 @@ Each phase is sized to be one agent's bounded task. **Definition of Done (DoD)**
 - Add Zustand, RHF, Zod. Set up Jest + RN Testing Library with one smoke test.
 - Add **NativeWind** and establish the **design system** (§7.7): `theme.ts` tokens (color, type scale, spacing, radius, light/dark) + the primitives kit (`Screen`, `Button`, `Card`, `Input`, `Chip`, `FAB`, `AmountText`, `EmptyState`). Later phases build screens only from these.
 - Update root `Makefile` with `mobile` targets (run/lint/test/build); note `apps/api` is parked.
+- **CI enforcement:** extend `.pre-commit-config.yaml` with mobile lint/format hooks, and add a minimal GitHub Actions workflow running mobile lint + typecheck + Jest on push. The per-phase DoD needs a red ✗ to be enforceable, not just agent discipline.
 - **DoD:** `make -C apps/mobile run` shows a placeholder home (using the primitives, in light + dark) on web and on an Android device/emulator; a trivial SQLite read/write works on both.
 
 ### Phase 1 — Data layer (schema, migrations, seed, repos)
@@ -293,6 +294,8 @@ Each phase is sized to be one agent's bounded task. **Definition of Done (DoD)**
 - Ledger list screen (reverse chronological, color-coded amounts, live).
 - **Performance guardrail:** `FlatList` virtualization + a windowed/paginated live query (e.g. first 100 rows + load-more) — do not `useLiveQuery` the entire ledger unbounded. Plain `LIKE '%q%'` search is fine at 10k rows; skip FTS5 for MVP.
 - Add/Edit entry form (§7.3) with RHF+Zod, Debit/Credit toggle, category picker, tags input + suggestions, currency default from settings.
+- **Day grouping:** section headers per calendar day with a day total (e.g. "Wed, Jul 3 — ₹840") instead of a flat list.
+- **Duplicate entry:** long-press/row action to clone an entry with today's date — makes recurring daily expenses a 2-tap record (serves the 5-second-entry principle, §7.7).
 - Delete = toast with **Undo** (clears `deleted_at`, §6.7) → soft delete.
 - Component + integration tests (create → appears in list; edit; delete → disappears; tag suggestions upserted).
 - **DoD:** full expense lifecycle works end-to-end on web + Android; this is the first genuinely usable build.
@@ -306,7 +309,8 @@ Each phase is sized to be one agent's bounded task. **Definition of Done (DoD)**
 ### Phase 6 — Stats / dashboard & charts
 **Goal:** Analyse spending.
 - Pick charting lib (§3). Summary cards (month total debit/credit, entry count), monthly bar, by-category breakdown (bar/pie), custom **total-by-tags** query for a date range.
-- Aggregation queries in `entriesRepo` (grouped sums, exclude soft-deleted, debit/credit split).
+- **Mixed-currency rule:** aggregate **only default-currency entries**; when other-currency entries exist in the range, show a small "n entries in other currencies excluded" badge. Never silently sum across currencies; no conversion in MVP.
+- Aggregation queries in `entriesRepo` (grouped sums, exclude soft-deleted, debit/credit split, default-currency filter).
 - Tests for aggregation correctness.
 - **DoD:** charts render on web + native with real data; totals reconcile with the ledger.
 
@@ -329,7 +333,12 @@ Each phase is sized to be one agent's bounded task. **Definition of Done (DoD)**
 - Income sources as a first-class concept; **wealth calculator**.
 - **Optional sync**: revive `apps/api` as a sync service; add `device_id`/`user_id` + conflict resolution. Encryption-at-rest via op-sqlite/SQLCipher.
 - Payment methods (dropped from MVP per the new field spec — revisit if wanted).
+- **Receipt photos** on entries (design the schema so an attachments column/table can be added without migration pain; don't build now).
+- **Budgets & recurring expenses** (carried over from the old PRD's deferred list).
+- **Backup nudge**: gentle Settings reminder when no export has happened in 30 days — local-only data dies with the device.
 - App Store / Play Store submission.
+
+> **Known risk (accepted):** iOS is **expected to work, verified later** — the per-phase DoD only requires web + Android since there's no Apple developer account yet. Expo keeps this low-risk, but do not mistake iOS for tested.
 
 ---
 
