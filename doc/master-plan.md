@@ -14,6 +14,8 @@ Expense Manager is a **personal, local-first** app to record daily expenses and 
 
 **MVP scope (this plan):** record and manage expenses (a ledger), organise them with categories and tags, filter/search, and see basic stats. Lock the app with a PIN.
 
+**Platform reality:** the **native apps (Android/iOS) are the durable home** for data. The web build is a secondary convenience — browser-hosted SQLite lives in OPFS/IndexedDB which the browser may evict, and the web has no secure enclave. Export/backup (Phase 7) matters most on web; the "your data stays with you" promise is strongest on native.
+
 **Explicitly deferred (not MVP):** income sources, wealth calculator, multi-device sync, cloud backup, payment methods, multi-currency conversion. These are designed *around* but not *built* now.
 
 ---
@@ -45,10 +47,10 @@ Expense Manager is a **personal, local-first** app to record daily expenses and 
 | UI state | **Zustand** (small) | Lock state, filter state, theme. Keep server-state patterns out — data comes from the DB. |
 | Styling / UI | **NativeWind** (Tailwind for RN) + a small in-repo primitives set | Reuses the team's Tailwind familiarity; works web + native. Alternatives: Tamagui, gluestack-ui. See §7.7 for the design system. |
 | Forms | **React Hook Form + Zod** | Same as the old web app; schemas live in the domain layer. |
-| Secure storage | **`expo-secure-store`** | Stores PIN hash + (optional) DB encryption key. |
+| Secure storage | **`expo-secure-store`** (native) | Stores PIN hash + (optional) DB encryption key. **Native-only** — on web, fall back to `localStorage` and treat the web lock as a convenience gate, not a security boundary (see Phase 2). |
 | Biometrics | **`expo-local-authentication`** | Optional unlock via Face/Touch/fingerprint. |
 | Charts | **Decide in Phase 6.** Lead candidates: `victory-native` (Skia) for native, or `react-native-gifted-charts` (works on web via react-native-web + svg). | Recharts is DOM-only — **do not** carry it over. |
-| Testing (unit/component) | **Jest + `@testing-library/react-native`** | |
+| Testing (unit/component) | **Jest + `@testing-library/react-native`** | `expo-sqlite` is a native module and **cannot run in Jest** — repos accept an injected Drizzle instance; unit tests inject in-memory **`better-sqlite3`** (same SQL dialect). Do not mock the DB. |
 | Testing (E2E) | **Maestro** | Flows: lock, add entry, filter. Optional but recommended. |
 | Lint/format | **ESLint + Prettier** (reuse existing configs where possible) | |
 | Build/distribution | **EAS Build** | Android APK for LAN sideload now; TestFlight/Play later. |
@@ -113,7 +115,7 @@ SQLite has no native array or decimal types. Two rules follow:
 | category_id | text NOT NULL FK → categories.id | |
 | amount_minor | integer NOT NULL | **signed**: negative = debit (money out), positive = credit (money in) |
 | currency | text NOT NULL | ISO 4217; per-entry (default from settings) |
-| occurred_on | integer NOT NULL | transaction date, epoch ms (date-only semantics) |
+| occurred_on | text NOT NULL | transaction date as **`YYYY-MM-DD`** (local calendar date — see §6.6; never epoch ms, which invites TZ off-by-one-day bugs) |
 | created_at | integer NOT NULL | epoch ms |
 | updated_at | integer NOT NULL | epoch ms |
 | deleted_at | integer NULL | soft delete |
@@ -157,6 +159,7 @@ SQLite has no native array or decimal types. Two rules follow:
 - **Credit** = money in = **positive** (refund/income).
 - `type` is **derived**, never stored: `type = amount_minor < 0 ? 'debit' : 'credit'`.
 - The entry form shows a **Debit/Credit toggle** plus a positive amount input; the repo applies the sign. Zero amount is invalid.
+- **Minor-unit exponent is currency-aware** in the money helpers: INR/USD/EUR = 2 decimals, JPY = 0, BHD/KWD = 3. Parse/format via a small exponent table; never assume "×100" universally.
 
 ### 6.2 Tags
 - Tags are **strings without spaces**. Validation regex: `^[^\s]+$`, trimmed, lowercased, max length 50, max ~20 tags/entry.
@@ -180,20 +183,31 @@ SQLite has no native array or decimal types. Two rules follow:
 ### 6.4 Categories
 - Ship a **preloaded seed set** (see 6.5). Users can add custom categories.
 - "Delete" a category = **soft delete** (`active=0`). It disappears from pickers but historical entries still resolve its name. Block deleting a category that would leave existing entries orphaned in the UI — just hide it from new-entry pickers.
+- **Name uniqueness is case-insensitive** and enforced in the repo (`Travel` == `travel`). Creating a category whose name matches an **inactive** one **reactivates** that row (preserving its id and historical links) instead of inserting a duplicate.
 
 ### 6.5 Seed categories (preloaded)
 `Food & Dining`, `Groceries`, `Transport`, `Rent`, `Utilities`, `Health`, `Entertainment`, `Shopping`, `Education`, `Travel`, `Subscriptions`, `Income`, `Miscellaneous`. Seeded with `is_preloaded=1` on first DB init (idempotent).
+
+### 6.6 Dates
+- `occurred_on` is a **local calendar date** stored as `YYYY-MM-DD` TEXT. No timezone math anywhere — an expense entered on July 4 is July 4 forever, regardless of device TZ.
+- Sorts lexicographically = chronologically; month bucketing for stats is `substr(occurred_on, 1, 7)` → `YYYY-MM`.
+- `created_at` / `updated_at` / `deleted_at` remain epoch-ms instants (they are real timestamps, not calendar dates).
+
+### 6.7 Soft delete, Undo, and purge
+- Entry delete = set `deleted_at = now`. The delete toast's **Undo** simply clears `deleted_at`.
+- **Purge policy:** on app start, hard-delete entries (and their `entry_tags`) where `deleted_at` is older than **30 days**. This bounds DB growth and defines the recovery window.
+- JSON backup **includes** soft-deleted rows (full fidelity); CSV export **excludes** them (user-facing view).
 
 ---
 
 ## 7. Screens & UX (MVP)
 
-1. **Lock screen** — first run: create PIN (+ confirm), offer biometrics. Thereafter: unlock via PIN or biometrics. Gates the whole app.
-2. **Ledger (home)** — reverse-chronological list of entries. Each row: title, category chip, tags, signed amount (color-coded: debit vs credit), date. Sticky **filter bar** (category selector + tag filter + search). **Add** button (FAB). Empty state → prompt to add first entry.
-3. **Add / Edit entry** — form: title (req), amount + currency + **Debit/Credit toggle** (req), category picker (req), date (default today), tags input with suggestions, description (optional). Delete action on edit (with confirm → soft delete).
-4. **Categories** — list preloaded + custom; add/edit/deactivate. Color pick optional.
-5. **Settings** — change PIN, toggle biometrics, default currency, **export/import** (JSON backup; CSV export), "about / your data stays with you" note.
-6. **Stats/Dashboard** *(Phase 6)* — summary cards (total spent this month, count), monthly bar, by-category breakdown, tag-total custom query.
+- **7.1 Lock screen** — first run: create PIN (+ confirm), offer biometrics. Thereafter: unlock via PIN or biometrics. Gates the whole app. Includes a **"Forgot PIN?"** path (see Phase 2) — never a dead end.
+- **7.2 Ledger (home)** — reverse-chronological list of entries. Each row: title, category chip, tags, signed amount (color-coded: debit vs credit), date. Sticky **filter bar** (category selector + tag filter + search). **Add** button (FAB). Empty state → prompt to add first entry.
+- **7.3 Add / Edit entry** — form: title (req), amount + currency + **Debit/Credit toggle** (req), category picker (req), date (default today), tags input with suggestions, description (optional). Delete action on edit (with confirm → soft delete).
+- **7.4 Categories** — list preloaded + custom; add/edit/deactivate. Color pick optional.
+- **7.5 Settings** — change PIN, toggle biometrics, default currency, **export/import** (JSON backup; CSV export/import), "about / your data stays with you" note (with the web-storage caveat from §1).
+- **7.6 Stats/Dashboard** *(Phase 6)* — summary cards (total spent this month, count), monthly bar, by-category breakdown, tag-total custom query.
 
 Design mobile-first; the web build is the same screens via react-native-web. Keep the old web app's UX one-pager (`doc/dashboard-ledger-ux-onepager.md`) as inspiration for the stats screen.
 
@@ -250,18 +264,23 @@ Each phase is sized to be one agent's bounded task. **Definition of Done (DoD)**
 ### Phase 1 — Data layer (schema, migrations, seed, repos)
 **Goal:** Full typed persistence with no UI.
 - Drizzle schema for all tables in §5; generate initial migration; wire `useMigrations()` on boot.
+- Enable **`PRAGMA foreign_keys = ON`** on every connection (SQLite defaults it off — without this the §5 FKs are decorative).
 - Idempotent **seed** of preloaded categories + default `app_settings`.
-- Repositories in `src/data`: `categoriesRepo`, `entriesRepo` (CRUD, soft delete, list with filters per §6.3), `tagsRepo` (upsert suggestions, search).
-- Domain (`src/domain`): Zod schemas, money helpers (parse/format minor units), sign logic, tag validation.
-- **Unit tests** for domain logic and repo query behavior (money rounding, sign derivation, tag-AND filtering, soft-delete exclusion, seed idempotency).
+- Repositories in `src/data`: `categoriesRepo` (incl. case-insensitive uniqueness + reactivation per §6.4), `entriesRepo` (CRUD, soft delete, purge per §6.7, list with filters per §6.3), `tagsRepo` (upsert suggestions, search).
+- Domain (`src/domain`): Zod schemas, money helpers (currency-aware minor units per §6.1), sign logic, tag validation, date helpers (§6.6).
+- **Test strategy:** repos take an injected Drizzle instance; unit tests run against in-memory **`better-sqlite3`** (`expo-sqlite` cannot run in Jest). Real SQL, no DB mocks.
+- **Unit tests** for domain logic and repo query behavior (money rounding incl. 0/3-decimal currencies, sign derivation, tag-AND filtering, soft-delete exclusion, purge cutoff, category reactivation, seed idempotency).
 - **DoD:** repos + domain fully unit-tested; seed runs once; no UI yet.
 
 ### Phase 2 — App lock (PIN + biometrics)
 **Goal:** The app is gated.
-- First-run PIN creation; store **salted hash** in `expo-secure-store`. Unlock flow. Optional biometrics via `expo-local-authentication`. Lock on background/relaunch.
+- First-run PIN creation; store **salted hash** in `expo-secure-store`. Unlock flow. Optional biometrics via `expo-local-authentication`.
+- **Web fallback:** `expo-secure-store` is native-only. On web, store the PIN hash in `localStorage` behind the same storage interface (one `pinStorage` abstraction, two impls). The web lock is a **convenience gate, not a security boundary** — say so in Settings/about.
+- **Forgot PIN (required):** no server ⇒ no reset email. The lock screen offers "Forgot PIN?": re-authenticate via **biometrics** (if enrolled) to set a new PIN; otherwise offer **wipe data & start over** with a strong, explicit warning. Never a silent dead end.
+- **Auto-lock with grace period:** lock on relaunch and on backgrounding, but with a short grace window (default **30 s**, configurable) so switching apps briefly doesn't force re-entry.
 - Zustand `lockStore`; route guard that redirects to lock screen until unlocked.
-- Tests: PIN set/verify logic, wrong-PIN handling, locked→unlocked routing.
-- **DoD:** fresh install forces PIN creation; relaunch requires unlock; biometrics optional.
+- Tests: PIN set/verify logic, wrong-PIN handling, forgot-PIN paths, grace-period timing, locked→unlocked routing.
+- **DoD:** fresh install forces PIN creation; relaunch requires unlock; biometrics optional; forgot-PIN path works on native and web.
 
 ### Phase 3 — Categories management UI
 **Goal:** CRUD categories on top of Phase 1 repos.
@@ -272,8 +291,9 @@ Each phase is sized to be one agent's bounded task. **Definition of Done (DoD)**
 ### Phase 4 — Ledger CRUD (the core)
 **Goal:** Add/edit/delete/list entries — the heart of the app.
 - Ledger list screen (reverse chronological, color-coded amounts, live).
+- **Performance guardrail:** `FlatList` virtualization + a windowed/paginated live query (e.g. first 100 rows + load-more) — do not `useLiveQuery` the entire ledger unbounded. Plain `LIKE '%q%'` search is fine at 10k rows; skip FTS5 for MVP.
 - Add/Edit entry form (§7.3) with RHF+Zod, Debit/Credit toggle, category picker, tags input + suggestions, currency default from settings.
-- Delete = confirm → soft delete.
+- Delete = toast with **Undo** (clears `deleted_at`, §6.7) → soft delete.
 - Component + integration tests (create → appears in list; edit; delete → disappears; tag suggestions upserted).
 - **DoD:** full expense lifecycle works end-to-end on web + Android; this is the first genuinely usable build.
 
@@ -292,14 +312,16 @@ Each phase is sized to be one agent's bounded task. **Definition of Done (DoD)**
 
 ### Phase 7 — Backup: export / import
 **Goal:** User owns and can move their data (reinforces "your data stays with you").
-- **Export**: full JSON backup + CSV of entries (share sheet / file save).
-- **Import**: restore from JSON backup (validate, merge or replace with confirm).
-- Tests for round-trip export→import fidelity.
-- **DoD:** a backup can be exported and re-imported into a clean install with identical data.
+- **Export**: full JSON backup + CSV of entries (share sheet / file save). The JSON envelope carries **`schemaVersion`** + app version so future app versions can migrate old backups. JSON includes soft-deleted rows; CSV excludes them (§6.7).
+- **Import (JSON)**: restore from backup — validate, migrate older `schemaVersion`s, merge or replace with confirm.
+- **Import (CSV) — legacy data path:** column-mapped CSV import (date, title, amount, category, tags) so the user's **existing history** (currently in the parked Postgres stack / `scripts/ingest_expenses.py` CSVs) can be brought into the app. Auto-create missing categories; report skipped/invalid rows. Without this, historical data is stranded.
+- Tests for round-trip export→import fidelity and CSV mapping edge cases.
+- **DoD:** a JSON backup round-trips into a clean install with identical data; a legacy CSV imports with a visible success/skip report.
 
 ### Phase 8 — Build & distribution
 **Goal:** Get it onto the user's devices.
 - EAS Build config; produce an Android APK for **LAN/sideload** install now.
+- Basic branding: app name, icon, splash screen (`app.json` / `expo-splash-screen`) consistent with the §7.7 theme.
 - Document install steps. iOS via TestFlight and store submission are **future** (needs Apple Developer account).
 - **DoD:** an installable Android build exists and runs on a real device.
 
@@ -328,6 +350,7 @@ Each phase is sized to be one agent's bounded task. **Definition of Done (DoD)**
 - **Definition of Done (every phase):** compiles, lint + typecheck clean, phase tests green, boots on **web and Android**, committed on a feature branch with a clear message.
 - **Verify on a real target**, not just tests — web is the fast loop, but confirm Android before calling a phase done (SQLite/native behavior differs).
 - **Don't reintroduce a server** or any network dependency into the MVP.
+- **No analytics, telemetry, or crash-reporting SDKs that send data off-device.** The privacy promise is absolute — it's the product's marketing claim. (Local-only crash logs are fine.)
 
 ---
 
