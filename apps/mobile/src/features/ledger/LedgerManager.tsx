@@ -50,6 +50,8 @@ export type LedgerManagerProps = {
   onChanged?: () => void
   /** Navigate to the Categories screen (header entry point). */
   onOpenCategories?: () => void
+  /** Navigate to the Stats/dashboard screen (header entry point, §8 Phase 6). */
+  onOpenStats?: () => void
 }
 
 type View_ = { mode: 'list' } | { mode: 'add' } | { mode: 'edit'; entry: EntryWithTags }
@@ -69,6 +71,7 @@ export function LedgerManager({
   onLoadMore,
   onChanged,
   onOpenCategories,
+  onOpenStats,
 }: LedgerManagerProps) {
   const [view, setView] = useState<View_>({ mode: 'list' })
   const [busy, setBusy] = useState(false)
@@ -204,13 +207,22 @@ export function LedgerManager({
                   }`}
             </Text>
           </View>
-          <Button
-            label="Categories"
-            variant="secondary"
-            size="sm"
-            onPress={() => onOpenCategories?.()}
-            testID="ledger-open-categories"
-          />
+          <View className="flex-row items-center gap-2">
+            <Button
+              label="Stats"
+              variant="secondary"
+              size="sm"
+              onPress={() => onOpenStats?.()}
+              testID="ledger-open-stats"
+            />
+            <Button
+              label="Categories"
+              variant="secondary"
+              size="sm"
+              onPress={() => onOpenCategories?.()}
+              testID="ledger-open-categories"
+            />
+          </View>
         </View>
 
         {showFilterBar ? <FilterBar db={db} testID="ledger-filter-bar" /> : null}

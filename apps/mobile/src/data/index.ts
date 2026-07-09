@@ -4,6 +4,7 @@
  */
 export * from './categoriesRepo'
 export * from './entriesRepo'
+export * from './statsRepo'
 export * from './tagsRepo'
 export * from './settingsRepo'
 export * from './wipe'

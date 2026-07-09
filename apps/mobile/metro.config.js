@@ -11,6 +11,18 @@ config.resolver.sourceExts.push('sql')
 // expo-sqlite on web ships a wa-sqlite WASM binary that must be bundled as an asset.
 config.resolver.assetExts.push('wasm')
 
+// react-native-gifted-charts' barrel statically references `react-native-linear-gradient`
+// (via its LineChart export) even though we only use the non-gradient Bar/Pie charts. That
+// native-only package isn't installed; alias it to the installed, cross-platform
+// `expo-linear-gradient` so Metro can resolve the module graph on web + native.
+const baseResolveRequest = config.resolver.resolveRequest
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === 'react-native-linear-gradient') {
+    return context.resolveRequest(context, 'expo-linear-gradient', platform)
+  }
+  return (baseResolveRequest ?? context.resolveRequest)(context, moduleName, platform)
+}
+
 // expo-sqlite's web build uses OPFS + SharedArrayBuffer, which browsers only expose
 // to cross-origin-isolated pages. Send the required COOP/COEP headers from the dev
 // server. (For `expo export` / production, the same headers are declared for the

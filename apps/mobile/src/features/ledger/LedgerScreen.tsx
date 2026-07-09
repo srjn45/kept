@@ -62,6 +62,7 @@ export function LedgerScreen() {
       onLoadMore={() => setLimit((l) => l + PAGE_SIZE)}
       onChanged={refresh}
       onOpenCategories={() => router.push('/categories')}
+      onOpenStats={() => router.push('/stats')}
     />
   )
 }
