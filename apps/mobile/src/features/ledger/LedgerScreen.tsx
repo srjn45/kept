@@ -6,6 +6,7 @@ import { getSettings, ledgerLiveQuery, listEntries } from '@/data'
 import { getDatabase } from '@/db/client'
 
 import { LedgerManager } from './LedgerManager'
+import { filterSignature, toListFilters, useLedgerFilterStore } from './filterStore'
 
 /** First page size / load-more increment (§8 Phase 4 perf guardrail: windowed, never unbounded). */
 const PAGE_SIZE = 100
@@ -27,10 +28,28 @@ export function LedgerScreen() {
   const [limit, setLimit] = useState(PAGE_SIZE)
   const [, refresh] = useReducer((n: number) => n + 1, 0)
 
+  // Filter selections (Phase 5) — subscribing here re-renders on every filter change, which
+  // re-runs `listEntries` below. This is a plain React state dependency, NOT the web
+  // change-listener gap: filtering never mutates the DB, so it doesn't rely on `useLiveQuery`.
+  const categoryId = useLedgerFilterStore((s) => s.categoryId)
+  const tags = useLedgerFilterStore((s) => s.tags)
+  const search = useLedgerFilterStore((s) => s.search)
+  const selection = { categoryId, tags, search }
+  const signature = filterSignature(selection)
+
+  // Reset the pagination window whenever the filter changes, so we never keep an oversized
+  // window or append filtered-out stale pages across a filter switch (§8 Phase 5). This is the
+  // React-recommended "adjust state during render" pattern (no effect, no cascading commit).
+  const [prevSignature, setPrevSignature] = useState(signature)
+  if (signature !== prevSignature) {
+    setPrevSignature(signature)
+    setLimit(PAGE_SIZE)
+  }
+
   // Native change subscription; its `.data` is intentionally ignored — we read via the repo.
   useLiveQuery(ledgerLiveQuery(db, limit))
 
-  const entries = listEntries(db, { limit })
+  const entries = listEntries(db, { ...toListFilters(selection), limit })
   const hasMore = entries.length === limit
   const defaultCurrency = getSettings(db)?.defaultCurrency ?? 'INR'
 

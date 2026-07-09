@@ -17,6 +17,8 @@ import type { Category } from '@/db/schema'
 
 import { LedgerRow } from './LedgerRow'
 import { EntryForm } from './EntryForm'
+import { FilterBar } from './FilterBar'
+import { hasActiveFilters, useLedgerFilterStore } from './filterStore'
 import { groupEntriesByDay } from './grouping'
 import {
   duplicateEntryInput,
@@ -74,6 +76,18 @@ export function LedgerManager({
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [snack, setSnack] = useState<SnackState | null>(null)
   const snackTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Filter selections (Phase 5) live in a Zustand singleton so they survive navigation; we
+  // read them here only to choose the empty-state copy and to offer a one-tap clear. The
+  // actual filtered query runs in the route (LedgerScreen), which re-reads `listEntries`.
+  const categoryId = useLedgerFilterStore((s) => s.categoryId)
+  const filterTags = useLedgerFilterStore((s) => s.tags)
+  const search = useLedgerFilterStore((s) => s.search)
+  const clearFilters = useLedgerFilterStore((s) => s.clear)
+  const filtersActive = hasActiveFilters({ categoryId, tags: filterTags, search })
+  // Show the filter bar whenever there's something to filter or a filter is already active;
+  // hide it only on a truly empty first-run ledger so the empty state stands alone.
+  const showFilterBar = filtersActive || entries.length > 0
 
   useEffect(
     () => () => {
@@ -199,6 +213,8 @@ export function LedgerManager({
           />
         </View>
 
+        {showFilterBar ? <FilterBar db={db} testID="ledger-filter-bar" /> : null}
+
         <SectionList
           sections={sections}
           keyExtractor={(item) => item.id}
@@ -248,13 +264,23 @@ export function LedgerManager({
             )
           }}
           ListEmptyComponent={
-            <EmptyState
-              title="No expenses yet"
-              description="Record your first expense — it's a 5-second, one-thumb task. Your data stays on your device."
-              actionLabel="Add your first expense"
-              onAction={() => setView({ mode: 'add' })}
-              testID="ledger-empty"
-            />
+            filtersActive ? (
+              <EmptyState
+                title="No matching expenses"
+                description="No expenses match your current filters. Try removing a tag, changing the category, or clearing the search."
+                actionLabel="Clear filters"
+                onAction={clearFilters}
+                testID="ledger-empty-filtered"
+              />
+            ) : (
+              <EmptyState
+                title="No expenses yet"
+                description="Record your first expense — it's a 5-second, one-thumb task. Your data stays on your device."
+                actionLabel="Add your first expense"
+                onAction={() => setView({ mode: 'add' })}
+                testID="ledger-empty"
+              />
+            )
           }
           ListFooterComponent={
             hasMore ? (
