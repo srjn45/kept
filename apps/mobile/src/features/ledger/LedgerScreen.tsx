@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite'
-import { router } from 'expo-router'
-import { useReducer, useState } from 'react'
+import { router, useFocusEffect } from 'expo-router'
+import { useCallback, useReducer, useState } from 'react'
 
 import { getSettings, ledgerLiveQuery, listEntries } from '@/data'
 import { getDatabase } from '@/db/client'
@@ -48,6 +48,10 @@ export function LedgerScreen() {
 
   // Native change subscription; its `.data` is intentionally ignored — we read via the repo.
   useLiveQuery(ledgerLiveQuery(db, limit))
+  // Re-read on focus so returning from Settings after a bulk JSON restore / CSV import shows the
+  // new rows live on web, where expo-sqlite's WASM change-listener stays silent for bulk writes
+  // made off this screen (§8 reactivity note). Harmless on native (useLiveQuery already covers it).
+  useFocusEffect(useCallback(() => refresh(), [refresh]))
 
   const entries = listEntries(db, { ...toListFilters(selection), limit })
   const hasMore = entries.length === limit
@@ -63,6 +67,7 @@ export function LedgerScreen() {
       onChanged={refresh}
       onOpenCategories={() => router.push('/categories')}
       onOpenStats={() => router.push('/stats')}
+      onOpenSettings={() => router.push('/settings')}
     />
   )
 }

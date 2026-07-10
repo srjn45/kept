@@ -52,6 +52,8 @@ export type LedgerManagerProps = {
   onOpenCategories?: () => void
   /** Navigate to the Stats/dashboard screen (header entry point, §8 Phase 6). */
   onOpenStats?: () => void
+  /** Navigate to the Settings screen (header entry point, §8 Phase 7 — backup export/import). */
+  onOpenSettings?: () => void
 }
 
 type View_ = { mode: 'list' } | { mode: 'add' } | { mode: 'edit'; entry: EntryWithTags }
@@ -72,6 +74,7 @@ export function LedgerManager({
   onChanged,
   onOpenCategories,
   onOpenStats,
+  onOpenSettings,
 }: LedgerManagerProps) {
   const [view, setView] = useState<View_>({ mode: 'list' })
   const [busy, setBusy] = useState(false)
@@ -221,6 +224,13 @@ export function LedgerManager({
               size="sm"
               onPress={() => onOpenCategories?.()}
               testID="ledger-open-categories"
+            />
+            <Button
+              label="Settings"
+              variant="secondary"
+              size="sm"
+              onPress={() => onOpenSettings?.()}
+              testID="ledger-open-settings"
             />
           </View>
         </View>
