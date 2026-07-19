@@ -16,6 +16,9 @@ import { filterSignature, toListFilters, useLedgerFilterStore } from '../filterS
  * selection into `listEntries` filters, and RESETS the pagination window when the filter
  * signature changes — the exact wiring §8 Phase 5 requires.
  */
+/** waitFor budget for debounced-search assertions — generous so a loaded CI runner doesn't flake. */
+const SEARCH_WAIT_MS = 5000
+
 const SAFE_AREA_METRICS = {
   frame: { x: 0, y: 0, width: 390, height: 844 },
   insets: { top: 0, left: 0, right: 0, bottom: 0 },
@@ -133,12 +136,15 @@ describe('Ledger filtering & search (§8 Phase 5)', () => {
     const view = renderLedger(<Harness db={h.db} />)
 
     fireEvent.changeText(view.getByTestId('filter-search-input'), 'lunch')
-    await waitFor(() => expect(view.queryByText('Taxi')).toBeNull())
+    // The 250ms search debounce is a REAL timer; on a CPU-saturated CI runner the timer callback
+    // + VirtualizedList re-render can exceed waitFor's 1s default, so give it headroom (mirrors the
+    // testTimeout=20s rationale in jest.config.js — tolerates a loaded runner, weakens nothing).
+    await waitFor(() => expect(view.queryByText('Taxi')).toBeNull(), { timeout: SEARCH_WAIT_MS })
     expect(view.getByText('Team lunch')).toBeTruthy()
 
     // Matches description too.
     fireEvent.changeText(view.getByTestId('filter-search-input'), 'airport')
-    await waitFor(() => expect(view.getByText('Taxi')).toBeTruthy())
+    await waitFor(() => expect(view.getByText('Taxi')).toBeTruthy(), { timeout: SEARCH_WAIT_MS })
     expect(view.queryByText('Team lunch')).toBeNull()
   })
 
@@ -152,7 +158,9 @@ describe('Ledger filtering & search (§8 Phase 5)', () => {
     addTagFilter(view, 'work')
     fireEvent.changeText(view.getByTestId('filter-search-input'), 'lunch')
 
-    await waitFor(() => expect(view.getByText('Team lunch')).toBeTruthy())
+    await waitFor(() => expect(view.getByText('Team lunch')).toBeTruthy(), {
+      timeout: SEARCH_WAIT_MS,
+    })
     expect(view.queryByText('Solo lunch')).toBeNull() // wrong tag
     expect(view.queryByText('Work trip lunch')).toBeNull() // wrong category
   })
