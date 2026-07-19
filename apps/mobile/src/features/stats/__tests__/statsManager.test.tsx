@@ -13,6 +13,14 @@ import { StatsManager } from '../StatsManager'
  */
 jest.useFakeTimers()
 
+// Restore real timers once this file finishes so the fake-timer state cannot leak into other
+// test files that share the same Jest worker process. Without this, files scheduled after this
+// one on the same worker (e.g. the ledger search test, whose debounce relies on real setTimeout)
+// would inherit fake timers and hang. jest.useFakeTimers() here is file-local by intent.
+afterAll(() => {
+  jest.useRealTimers()
+})
+
 const TODAY = '2026-07-10'
 
 describe('StatsManager (§7.6 / §8 Phase 6)', () => {
