@@ -36,14 +36,31 @@ function preloadedId(name: string): string {
 }
 
 /**
+ * Fallback seeded currency when the caller doesn't supply one (e.g. tests, or a platform
+ * with no device locale). The app is multi-currency; production callers pass the device's
+ * detected currency via {@link getDeviceDefaultCurrency}. USD is a neutral default.
+ */
+export const DEFAULT_SEED_CURRENCY = 'USD'
+
+/** Options for {@link seedDatabase}. */
+export type SeedOptions = {
+  /**
+   * ISO 4217 code seeded into the single `app_settings` row on first init. Only applied when
+   * the settings row doesn't already exist (idempotent). Defaults to {@link DEFAULT_SEED_CURRENCY}.
+   */
+  defaultCurrency?: string
+}
+
+/**
  * Seed preloaded categories + the default settings row. Idempotent:
  *  - each category is inserted by a stable id AND skipped if any category already has that
  *    (case-insensitive) name, so a user-renamed/reactivated preloaded row is never dup'd;
  *  - the settings row uses a fixed id (1) with `onConflictDoNothing`.
  * Runs in a single transaction.
  */
-export function seedDatabase(db: AppDatabase): void {
+export function seedDatabase(db: AppDatabase, options: SeedOptions = {}): void {
   const ts = now()
+  const defaultCurrency = options.defaultCurrency ?? DEFAULT_SEED_CURRENCY
   db.transaction((tx) => {
     for (const name of SEED_CATEGORY_NAMES) {
       const exists = tx
@@ -67,7 +84,7 @@ export function seedDatabase(db: AppDatabase): void {
     }
 
     tx.insert(appSettings)
-      .values({ id: APP_SETTINGS_ID, defaultCurrency: 'INR', pinSet: 0, biometricsEnabled: 0 })
+      .values({ id: APP_SETTINGS_ID, defaultCurrency, pinSet: 0, biometricsEnabled: 0 })
       .onConflictDoNothing()
       .run()
   })

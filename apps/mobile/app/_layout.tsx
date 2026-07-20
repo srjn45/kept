@@ -11,6 +11,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { getDatabase, warmUpDatabaseAsync } from '@/db/client'
 import migrations from '@/db/migrations/migrations'
 import { seedDatabase } from '@/db/seed'
+import { getDeviceDefaultCurrency } from '@/lib/deviceCurrency'
 import { LockGate } from '@/features/lock'
 import { useThemeColors } from '@/theme/useThemeColors'
 
@@ -45,7 +46,7 @@ function MigratedApp() {
     seeded.current = true
     Promise.resolve()
       .then(() => {
-        seedDatabase(getDatabase())
+        seedDatabase(getDatabase(), { defaultCurrency: getDeviceDefaultCurrency() })
         setSeedState('done')
       })
       .catch((e) => setSeedState({ error: e instanceof Error ? e.message : String(e) }))
