@@ -1,7 +1,11 @@
 # Releasing Expense Manager
 
-How to cut a new public release. The promotional site's **Download for Android**
-buttons link to a fixed URL that GitHub redirects to the newest release:
+How to cut a new public release. As of `.github/workflows/release-mobile.yml`,
+pushing a `vX.Y.Z` tag automates the build/download/publish/verify steps — you
+only need to bump the version (step 1) and tag it (step 3).
+
+The promotional site's **Download for Android** buttons link to a fixed URL
+that GitHub redirects to the newest release:
 
 ```
 https://github.com/srjn45/expense-manager/releases/latest/download/expense-manager.apk
@@ -39,50 +43,56 @@ This rewrites `apps/mobile/assets/images/*.png` (icon, adaptive
 foreground/background/monochrome, splash, favicon) and the website images under
 `docs/assets/`. Commit those too. Skip this step for a normal release.
 
-## 3. Build the Android APK (EAS)
+## 3. Tag and push
 
-From `apps/mobile`, with the **`preview`** profile (it produces a directly
-installable APK — see `apps/mobile/eas.json`):
+Once the version bump (and any icon regen) is merged to `main`:
+
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+Pushing the tag triggers `.github/workflows/release-mobile.yml`, which:
+
+1. Runs the same lint/typecheck/test/format checks as Mobile CI (`verify` job)
+   — the release is aborted if these fail.
+2. Confirms the tag (`v1.1.0`) matches `apps/mobile/app.json`'s `expo.version`
+   — aborts with a clear error if you forgot to bump it.
+3. Builds the Android APK on EAS (`preview` profile, reuses the EAS-managed
+   keystore, so updates install in place without wiping data).
+4. Downloads the finished build's artifact and publishes it as a GitHub
+   Release (`gh release create ... --generate-notes`), attached as the fixed
+   `expense-manager.apk` name.
+5. Verifies the public download redirect resolves.
+
+Watch it at `https://github.com/srjn45/expense-manager/actions`. Requires an
+`EXPO_TOKEN` repo secret (`npx eas-cli token:create`, then
+`gh secret set EXPO_TOKEN`) — without it, the EAS build step fails auth.
+
+### Manual fallback
+
+If the workflow is unavailable or you need to cut a release by hand:
 
 ```bash
 cd apps/mobile
-npx eas-cli@latest whoami   # confirm you're logged in (e.g. srjn45)
 npx eas-cli@latest build --platform android --profile preview
-```
 
-The build runs in Expo's cloud (~10–20 min) and reuses the EAS-managed keystore,
-so updates install in place over a previous version without wiping data.
-
-## 4. Download the APK
-
-Grab the artifact URL for the finished build and save it as `expense-manager.apk`:
-
-```bash
 # newest finished Android build's APK url
 URL=$(npx eas-cli@latest build:list --platform android --limit 1 --non-interactive --json \
   | python3 -c "import sys,json;print(json.load(sys.stdin)[0]['artifacts']['applicationArchiveUrl'])")
-
 curl -sL "$URL" -o expense-manager.apk
-```
 
-(You can also download it from the build details page on `expo.dev`.)
-
-## 5. Create the GitHub Release
-
-Tag on `main`, and attach the APK **with the exact `expense-manager.apk` name**:
-
-```bash
 gh release create v1.1.0 ./expense-manager.apk#expense-manager.apk \
   --repo srjn45/expense-manager \
   --target main \
   --title "Expense Manager v1.1.0" \
-  --notes "What changed in this release…"
+  --generate-notes
 ```
 
 The `#expense-manager.apk` suffix sets the uploaded asset's display name — keep
 it constant even if your local file is named differently.
 
-## 6. Verify
+## 4. Verify
 
 ```bash
 curl -sL -o /dev/null -w '%{http_code} %{content_type}\n' \

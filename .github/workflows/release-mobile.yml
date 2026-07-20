@@ -1,0 +1,103 @@
+name: Release Mobile
+
+# Cuts a public release: verifies the mobile app (mirrors Mobile CI), builds an
+# Android APK via EAS, and publishes it as a GitHub Release so the promo site's
+# fixed download URL (releases/latest/download/expense-manager.apk) picks it up.
+# See RELEASING.md.
+#
+# Trigger by bumping apps/mobile/app.json's expo.version (and package.json's
+# version) on main, then tagging that commit and pushing the tag:
+#   git tag v1.2.0 && git push origin v1.2.0
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+defaults:
+  run:
+    working-directory: apps/mobile
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test -- --ci
+
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check tag matches app.json version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          APP_VERSION=$(node -p "require('./app.json').expo.version")
+          if [ "$TAG_VERSION" != "$APP_VERSION" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match apps/mobile/app.json expo.version ($APP_VERSION)." >&2
+            echo "Bump expo.version (and package.json's version) to $TAG_VERSION on main first." >&2
+            exit 1
+          fi
+
+      - name: Build Android APK (EAS)
+        run: |
+          npx eas-cli@latest build --platform android --profile preview \
+            --non-interactive --json > eas-build.json
+          cat eas-build.json
+
+      - name: Download APK
+        run: |
+          URL=$(node -p "require('./eas-build.json')[0].artifacts.applicationArchiveUrl")
+          curl -sL "$URL" -o expense-manager.apk
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            ./expense-manager.apk#expense-manager.apk \
+            --repo "${{ github.repository }}" \
+            --target main \
+            --title "Expense Manager $GITHUB_REF_NAME" \
+            --generate-notes
+
+      - name: Verify public download link
+        run: |
+          curl -sL -o /dev/null -w '%{http_code} %{content_type}\n' \
+            "https://github.com/${{ github.repository }}/releases/latest/download/expense-manager.apk"
