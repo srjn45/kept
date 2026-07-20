@@ -6,6 +6,7 @@
  * backend swapped for an in-memory fake.
  */
 import { savePin, clearStoredPin } from '@/lib/pinStorage'
+import { getDeviceDefaultCurrency } from '@/lib/deviceCurrency'
 import { updateSettings, wipeAllData } from '@/data'
 import type { AppDatabase } from '@/db/types'
 
@@ -45,6 +46,6 @@ export function setBiometricsEnabled(db: AppDatabase, enabled: boolean): void {
  * PIN creation. Irreversible — guard behind an explicit confirmation in the UI.
  */
 export async function wipeAndStartOver(db: AppDatabase): Promise<void> {
-  wipeAllData(db)
+  wipeAllData(db, { defaultCurrency: getDeviceDefaultCurrency() })
   await clearStoredPin()
 }

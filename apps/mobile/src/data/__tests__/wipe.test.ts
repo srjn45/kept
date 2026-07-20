@@ -41,6 +41,11 @@ describe('wipeAllData (§8 forgot-PIN "start over")', () => {
     // Preloaded categories are re-seeded and settings reset to defaults (pin_set = 0).
     expect(listCategories(h.db)).toHaveLength(SEED_CATEGORY_NAMES.length)
     const settings = getSettings(h.db)
-    expect(settings).toMatchObject({ pinSet: 0, biometricsEnabled: 0, defaultCurrency: 'INR' })
+    expect(settings).toMatchObject({ pinSet: 0, biometricsEnabled: 0, defaultCurrency: 'USD' })
+  })
+
+  it('re-seeds with the provided default currency (device-detected on a real wipe)', () => {
+    wipeAllData(h.db, { defaultCurrency: 'GBP' })
+    expect(getSettings(h.db)).toMatchObject({ defaultCurrency: 'GBP' })
   })
 })
