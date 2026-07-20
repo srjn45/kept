@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- flat white, transparent bg; Android 13+ themed-icon layer (alpha is tinted) -->
+  <path d="M322 618 L512 394 L702 618" fill="none" stroke="#FFFFFF" stroke-width="120"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

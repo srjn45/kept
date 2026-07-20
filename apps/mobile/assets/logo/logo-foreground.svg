@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="chev" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#D6E9FF"/>
+    </linearGradient>
+    <filter id="ds" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="20" flood-color="#0A3E77" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <!-- transparent bg; safe-zone chevron for Android adaptive foreground -->
+  <path d="M322 618 L512 394 L702 618" fill="none" stroke="url(#chev)" stroke-width="120"
+        stroke-linecap="round" stroke-linejoin="round" filter="url(#ds)"/>
+</svg>
