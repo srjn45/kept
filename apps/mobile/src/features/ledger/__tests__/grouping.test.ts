@@ -25,14 +25,21 @@ describe('formatDayTitle (§6.6)', () => {
     expect(formatDayTitle('2026-07-04', '2026-07-05')).toBe('Yesterday')
   })
 
-  it('formats other days as a short weekday/month/day label', () => {
-    // 2026-07-01 is a Wednesday.
+  it('formats other same-year days as a short weekday/month/day label (no year)', () => {
+    // 2026-07-01 is a Wednesday; same year as `todayIso`, so the year is omitted.
     expect(formatDayTitle('2026-07-01', '2026-07-05')).toBe('Wed, Jul 1')
+  })
+
+  it('appends the year for a date outside the current year', () => {
+    // Imported prior-year rows must not be mistaken for the current year (§6.6).
+    expect(formatDayTitle('2025-07-01', '2026-07-05')).toBe('Tue, Jul 1, 2025')
+    expect(formatDayTitle('2027-01-02', '2026-07-05')).toBe('Sat, Jan 2, 2027')
   })
 
   it('does not shift across timezones (parses from calendar parts)', () => {
     // A date with no relative context still renders its own calendar day, never ±1.
-    expect(formatDayTitle('2026-01-01')).toBe('Thu, Jan 1')
+    // Pinned to a same-year `todayIso` so the label stays deterministic across clock years.
+    expect(formatDayTitle('2026-01-01', '2026-07-05')).toBe('Thu, Jan 1')
   })
 })
 

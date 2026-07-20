@@ -28,7 +28,9 @@ export type DaySection = {
 /**
  * Format a `YYYY-MM-DD` calendar date as a short human day label. Built from the date's
  * PARTS (local `new Date(y, m-1, d)`) so there is no timezone parsing shift (§6.6). Returns
- * "Today"/"Yesterday" relative to `todayIso` when it is provided and matches.
+ * "Today"/"Yesterday" relative to `todayIso` when it is provided and matches. The year is
+ * appended only when the date falls outside the current year (e.g. "Wed, Jul 1, 2025"), so
+ * imported prior-year rows aren't mistaken for the current year; same-year dates stay compact.
  */
 export function formatDayTitle(isoDate: string, todayIso?: string): string {
   if (todayIso && isoDate === todayIso) return 'Today'
@@ -45,11 +47,14 @@ export function formatDayTitle(isoDate: string, todayIso?: string): string {
       return 'Yesterday'
     }
   }
+  // Reference year is `todayIso`'s year when provided, else the clock's current year.
+  const currentYear = todayIso ? Number(todayIso.slice(0, 4)) : new Date().getFullYear()
   try {
     return new Intl.DateTimeFormat('en', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
+      ...(date.getFullYear() !== currentYear ? { year: 'numeric' } : {}),
     }).format(date)
   } catch {
     return isoDate
