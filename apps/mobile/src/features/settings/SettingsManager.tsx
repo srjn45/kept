@@ -308,6 +308,11 @@ export function SettingsManager({
           ) : null}
         </Card>
       ) : null}
+
+      {/* App version — helps users report the exact build they're on. */}
+      <Text className="mt-2 text-center text-xs text-muted" testID="settings-app-version">
+        Version {appVersion}
+      </Text>
     </Screen>
   )
 }

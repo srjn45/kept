@@ -66,6 +66,11 @@ describe('SettingsManager (§7.5 / §8 Phase 7)', () => {
   })
   afterEach(() => h.close())
 
+  it('displays the app version', () => {
+    const view = renderScreen(<Harness db={h.db} io={makeIo()} />)
+    expect(view.getByTestId('settings-app-version')).toHaveTextContent('Version 9.9.9')
+  })
+
   it('exports a JSON backup that includes soft-deleted entries', async () => {
     const cat = findCategoryByName(h.db, 'Food & Dining')!
     createEntry(h.db, {
