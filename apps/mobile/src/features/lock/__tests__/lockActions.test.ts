@@ -15,17 +15,13 @@ import {
   type PinStorageBackend,
 } from '@/lib/pinStorage'
 
-/** In-memory PIN backend so composition runs without SecureStore/localStorage. */
+/** In-memory KEYED PIN backend so composition runs without SecureStore/localStorage. */
 function createMemoryBackend(): PinStorageBackend {
-  let value: string | null = null
+  const mem = new Map<string, string>()
   return {
-    getItem: async () => value,
-    setItem: async (v) => {
-      value = v
-    },
-    removeItem: async () => {
-      value = null
-    },
+    getItem: async (key) => mem.get(key) ?? null,
+    setItem: async (key, value) => void mem.set(key, value),
+    removeItem: async (key) => void mem.delete(key),
   }
 }
 

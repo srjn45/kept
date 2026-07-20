@@ -25,16 +25,18 @@
  *   - tags        tags joined with "|" (the {@link CSV_TAG_DELIMITER})
  *   - description optional note
  */
-import { eq, isNull, sql } from 'drizzle-orm'
+import { isNull, sql } from 'drizzle-orm'
 
 import {
   BACKUP_APP_ID,
   BACKUP_SCHEMA_VERSION,
+  escapeCsvInjection,
   isValidISODate,
   minorUnitExponent,
   parseAmountInput,
   parseCsv,
   stringifyCsv,
+  unescapeCsvInjection,
   type BackupFile,
 } from '@/domain'
 import { now } from '@/domain/dates'
@@ -56,7 +58,6 @@ import {
 } from './categoriesRepo'
 import { createEntry, listEntries } from './entriesRepo'
 import { getSettings } from './settingsRepo'
-import { wipeAllData } from './wipe'
 
 // ---------------------------------------------------------------------------
 // JSON backup (full fidelity)
@@ -126,28 +127,37 @@ function replaceAll(db: AppDatabase, backup: BackupFile): void {
   const preservedPinSet = before?.pinSet ?? 0
   const preservedBiometrics = before?.biometricsEnabled ?? 0
 
-  // Reuse the shared wipe primitive (§ src/data/wipe.ts): clears all tables and re-seeds the
-  // preloaded categories + a settings row. We then overwrite categories/settings with the
-  // backup's rows so the result is an EXACT copy of the source, not the seed defaults.
-  wipeAllData(db)
-
   const { data } = backup
+  // Wipe AND re-insert in a SINGLE transaction: if any insert fails — e.g. a hand-edited or
+  // partially-corrupt backup that passes Zod SHAPE validation but violates a PK/FK constraint
+  // (a duplicate id, or an entry pointing at a category not present in the backup) — the whole
+  // thing rolls back and the user keeps their ORIGINAL data instead of being left with nothing.
+  // The previous implementation wiped in one transaction and inserted in another, leaving a
+  // data-loss window between them. We insert the backup verbatim rather than re-seeding, so the
+  // result is an exact reproduction of the source (round-trip DoD). Deletes go child→parent and
+  // inserts parent→child so the FK ordering holds whether or not PRAGMA foreign_keys is on.
   db.transaction((tx) => {
-    // Drop the just-reseeded preloaded categories, then insert the backup's verbatim (same ids).
-    // Safe: the entries table is empty here, so no FK references these rows yet.
+    tx.delete(entryTags).run()
+    tx.delete(ledgerEntries).run()
+    tx.delete(tagSuggestions).run()
     tx.delete(categories).run()
+    tx.delete(appSettings).run()
+
     if (data.categories.length > 0) tx.insert(categories).values(data.categories).run()
     if (data.ledgerEntries.length > 0) tx.insert(ledgerEntries).values(data.ledgerEntries).run()
     if (data.entryTags.length > 0) tx.insert(entryTags).values(data.entryTags).run()
     if (data.tagSuggestions.length > 0) tx.insert(tagSuggestions).values(data.tagSuggestions).run()
 
-    tx.update(appSettings)
-      .set({
+    // Recreate the single settings row: currency FROM the backup, lock flags from THIS device
+    // (the PIN hash lives in expo-secure-store on this device, §5.1 — restoring another
+    // device's flags would risk locking the user out).
+    tx.insert(appSettings)
+      .values({
+        id: APP_SETTINGS_ID,
         defaultCurrency: data.appSettings.defaultCurrency,
         pinSet: preservedPinSet,
         biometricsEnabled: preservedBiometrics,
       })
-      .where(eq(appSettings.id, APP_SETTINGS_ID))
       .run()
   })
 }
@@ -271,14 +281,16 @@ export function exportEntriesCsv(db: AppDatabase): string {
   const rows: string[][] = [[...CSV_HEADER]]
   for (const e of entries) {
     const cat = getCategoryById(db, e.categoryId)
+    // Neutralise formula injection on the free-text columns only (not the numeric amount,
+    // whose leading "+" credit marker must survive round-trip). Reversed on import below.
     rows.push([
       e.occurredOn,
-      e.title,
+      escapeCsvInjection(e.title),
       formatCsvAmount(e.amountMinor, e.currency),
       e.currency,
-      cat?.name ?? '',
-      e.tags.join(CSV_TAG_DELIMITER),
-      e.description ?? '',
+      escapeCsvInjection(cat?.name ?? ''),
+      escapeCsvInjection(e.tags.join(CSV_TAG_DELIMITER)),
+      escapeCsvInjection(e.description ?? ''),
     ])
   }
   return stringifyCsv(rows)
@@ -401,11 +413,13 @@ export function importEntriesCsv(
     const cell = (j: number) => (j >= 0 && j < cells.length ? cells[j].trim() : '')
 
     const date = cell(idx.date)
-    const title = cell(idx.title)
+    // Reverse the export-side injection guard on free-text columns (a no-op for CSVs from
+    // other sources that were never escaped, unless a value literally starts with "'=" etc.).
+    const title = unescapeCsvInjection(cell(idx.title))
     const amountCell = cell(idx.amount)
-    const categoryName = cell(idx.category)
-    const tagsCell = cell(idx.tags)
-    const description = cell(idx.description)
+    const categoryName = unescapeCsvInjection(cell(idx.category))
+    const tagsCell = unescapeCsvInjection(cell(idx.tags))
+    const description = unescapeCsvInjection(cell(idx.description))
     const currency = cell(idx.currency) || options.defaultCurrency
 
     // A completely blank line (e.g. a stray delimiter row) is ignored, not counted.

@@ -36,6 +36,14 @@ describe('toMinorUnits — rounding across 0/2/3-decimal currencies', () => {
     expect(toMinorUnits(1.005, 'KWD')).toBe(1005) // classic float trap → must be 1005
     expect(toMinorUnits(0.1 + 0.2, 'USD')).toBe(30) // 0.30000000000000004 → 30
   })
+  it('rounds half UP for the common 2-decimal case despite float error', () => {
+    // 1.005 * 100 = 100.49999999999999 in IEEE-754 — must still round to 101, not 100.
+    expect(toMinorUnits(1.005, 'USD')).toBe(101)
+    expect(toMinorUnits(1.015, 'USD')).toBe(102)
+    expect(toMinorUnits(2.675, 'EUR')).toBe(268) // another well-known float trap
+    expect(toMinorUnits(-1.005, 'USD')).toBe(-101) // half-away-from-zero on the negative side
+    expect(toMinorUnits(1.004, 'USD')).toBe(100) // genuinely below the half → rounds down
+  })
   it('preserves sign of the major input and round-trips back', () => {
     expect(toMinorUnits(-5.5, 'USD')).toBe(-550)
     expect(toMajorUnits(1234, 'USD')).toBeCloseTo(12.34, 10)

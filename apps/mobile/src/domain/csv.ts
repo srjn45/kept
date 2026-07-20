@@ -9,6 +9,28 @@
  * Pure TypeScript, no React/RN imports (see §4).
  */
 
+/**
+ * CSV formula-injection guard (§ security). A spreadsheet (Excel/Sheets/LibreOffice) interprets
+ * a cell whose FIRST character is `= + - @` (or a leading TAB/CR) as a formula — so an expense
+ * titled `=cmd|'/c calc'!A1` or `@SUM(...)` becomes executable when someone opens the exported
+ * CSV. Prefixing a single quote makes the spreadsheet treat the value as literal text.
+ *
+ * This is applied ONLY to free-text columns on export (never to the numeric `amount` column,
+ * whose leading `+` marks a credit and must survive round-trip). {@link unescapeCsvInjection}
+ * reverses it on import so an export→import round-trip preserves the original text exactly.
+ */
+const FORMULA_TRIGGER = /^[=+\-@\t\r]/
+
+/** Prefix a single quote if the value would be read as a formula. Reversible. */
+export function escapeCsvInjection(value: string): string {
+  return FORMULA_TRIGGER.test(value) ? `'${value}` : value
+}
+
+/** Reverse {@link escapeCsvInjection}: strip a leading quote we added (quote + trigger char). */
+export function unescapeCsvInjection(value: string): string {
+  return value.startsWith("'") && FORMULA_TRIGGER.test(value.slice(1)) ? value.slice(1) : value
+}
+
 /** True if a field must be quoted (contains a delimiter, quote, or line break). */
 function needsQuoting(field: string): boolean {
   return /[",\r\n]/.test(field)

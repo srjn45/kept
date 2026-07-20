@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { getDatabase, warmUpDatabaseAsync } from '@/db/client'
+import { purgeDeletedEntries } from '@/data'
 import migrations from '@/db/migrations/migrations'
 import { seedDatabase } from '@/db/seed'
 import { getDeviceDefaultCurrency } from '@/lib/deviceCurrency'
@@ -47,6 +48,14 @@ function MigratedApp() {
     Promise.resolve()
       .then(() => {
         seedDatabase(getDatabase(), { defaultCurrency: getDeviceDefaultCurrency() })
+        // Enforce the 30-day recovery window (§6.7): hard-delete soft-deleted entries whose
+        // window has elapsed, so the DB doesn't grow unbounded. Housekeeping only — a failure
+        // here must never block boot, so it's isolated from the seed's success path.
+        try {
+          purgeDeletedEntries(getDatabase())
+        } catch {
+          // ignore: purge is best-effort cleanup, not required for the app to run
+        }
         setSeedState('done')
       })
       .catch((e) => setSeedState({ error: e instanceof Error ? e.message : String(e) }))

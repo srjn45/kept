@@ -2,16 +2,20 @@ import { Platform } from 'react-native'
 
 import {
   _setBackendForTests,
+  clearFailedAttempts,
   clearStoredPin,
+  getLockoutRecord,
   hasStoredPin,
   nativeBackend,
   PIN_STORAGE_KEY,
+  recordFailedAttempt,
   savePin,
   selectBackend,
   verifyPin,
   webBackend,
   type PinStorageBackend,
 } from '@/lib/pinStorage'
+import { FREE_ATTEMPTS } from '@/lib/pinLockout'
 
 // In-memory secure-store so the NATIVE backend can be exercised under Jest (the real native
 // module can't run). Mirrors expo-secure-store's async API.
@@ -28,17 +32,13 @@ jest.mock('expo-secure-store', () => {
   }
 })
 
-/** A minimal in-memory backend for exercising the PIN service without any platform module. */
+/** A minimal in-memory, KEYED backend for exercising the PIN service without a platform module. */
 function createMemoryBackend(): PinStorageBackend {
-  let value: string | null = null
+  const mem = new Map<string, string>()
   return {
-    getItem: async () => value,
-    setItem: async (v) => {
-      value = v
-    },
-    removeItem: async () => {
-      value = null
-    },
+    getItem: async (key) => mem.get(key) ?? null,
+    setItem: async (key, value) => void mem.set(key, value),
+    removeItem: async (key) => void mem.delete(key),
   }
 }
 
@@ -69,23 +69,23 @@ describe('webBackend (localStorage)', () => {
   })
   beforeEach(() => store.clear())
 
-  it('round-trips a value under the PIN key', async () => {
-    expect(await webBackend.getItem()).toBeNull()
-    await webBackend.setItem('hello')
+  it('round-trips a value under the given key', async () => {
+    expect(await webBackend.getItem(PIN_STORAGE_KEY)).toBeNull()
+    await webBackend.setItem(PIN_STORAGE_KEY, 'hello')
     expect(store.get(PIN_STORAGE_KEY)).toBe('hello')
-    expect(await webBackend.getItem()).toBe('hello')
-    await webBackend.removeItem()
-    expect(await webBackend.getItem()).toBeNull()
+    expect(await webBackend.getItem(PIN_STORAGE_KEY)).toBe('hello')
+    await webBackend.removeItem(PIN_STORAGE_KEY)
+    expect(await webBackend.getItem(PIN_STORAGE_KEY)).toBeNull()
   })
 })
 
 describe('nativeBackend (expo-secure-store)', () => {
   it('round-trips a value via the secure-store async API', async () => {
-    expect(await nativeBackend.getItem()).toBeNull()
-    await nativeBackend.setItem('secret')
-    expect(await nativeBackend.getItem()).toBe('secret')
-    await nativeBackend.removeItem()
-    expect(await nativeBackend.getItem()).toBeNull()
+    expect(await nativeBackend.getItem(PIN_STORAGE_KEY)).toBeNull()
+    await nativeBackend.setItem(PIN_STORAGE_KEY, 'secret')
+    expect(await nativeBackend.getItem(PIN_STORAGE_KEY)).toBe('secret')
+    await nativeBackend.removeItem(PIN_STORAGE_KEY)
+    expect(await nativeBackend.getItem(PIN_STORAGE_KEY)).toBeNull()
   })
 })
 
@@ -125,5 +125,50 @@ describe('PIN service (hash + storage composed)', () => {
     await savePin('5678')
     expect(await verifyPin('1234')).toBe(false)
     expect(await verifyPin('5678')).toBe(true)
+  })
+})
+
+describe('failed-attempt throttling (§ brute-force guard)', () => {
+  let restore: () => void
+  beforeEach(() => {
+    restore = _setBackendForTests(createMemoryBackend())
+  })
+  afterEach(() => restore())
+
+  it('starts clean and persists an escalating counter', async () => {
+    expect(await getLockoutRecord()).toEqual({ fails: 0, lockedUntil: 0 })
+
+    for (let i = 1; i <= FREE_ATTEMPTS; i++) {
+      const rec = await recordFailedAttempt(1_000)
+      expect(rec.fails).toBe(i)
+      expect(rec.lockedUntil).toBe(0) // still within the free allowance
+    }
+    // The first failure past the allowance imposes a lockout in the future.
+    const locked = await recordFailedAttempt(1_000)
+    expect(locked.fails).toBe(FREE_ATTEMPTS + 1)
+    expect(locked.lockedUntil).toBeGreaterThan(1_000)
+    // Persisted: a fresh read sees the same record.
+    expect(await getLockoutRecord()).toEqual(locked)
+  })
+
+  it('clearFailedAttempts resets the counter', async () => {
+    await recordFailedAttempt(1_000)
+    await clearFailedAttempts()
+    expect(await getLockoutRecord()).toEqual({ fails: 0, lockedUntil: 0 })
+  })
+
+  it('saving a PIN resets any prior failed attempts', async () => {
+    await recordFailedAttempt(1_000)
+    await recordFailedAttempt(1_000)
+    await savePin('1234')
+    expect(await getLockoutRecord()).toEqual({ fails: 0, lockedUntil: 0 })
+  })
+
+  it('a successful verify does NOT itself clear attempts (the screen does that)', async () => {
+    await savePin('1234')
+    await recordFailedAttempt(1_000)
+    expect(await verifyPin('1234')).toBe(true)
+    // verifyPin is pure-read; UnlockScreen calls clearFailedAttempts on success.
+    expect((await getLockoutRecord()).fails).toBe(1)
   })
 })

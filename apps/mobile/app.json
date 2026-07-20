@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "com.srjn45.expensemanager",
+      "allowBackup": false,
       "adaptiveIcon": {
         "backgroundColor": "#208AEF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

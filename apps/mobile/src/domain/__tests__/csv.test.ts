@@ -1,4 +1,4 @@
-import { parseCsv, stringifyCsv } from '../csv'
+import { escapeCsvInjection, parseCsv, stringifyCsv, unescapeCsvInjection } from '../csv'
 
 describe('parseCsv / stringifyCsv (§8 Phase 7)', () => {
   it('parses a simple table', () => {
@@ -50,5 +50,33 @@ describe('parseCsv / stringifyCsv (§8 Phase 7)', () => {
     expect(stringifyCsv([['plain', 'has,comma', 'has"quote']])).toBe(
       'plain,"has,comma","has""quote"'
     )
+  })
+})
+
+describe('escapeCsvInjection — formula-injection guard (§ security)', () => {
+  it('prefixes a quote when a cell would be read as a formula', () => {
+    expect(escapeCsvInjection('=1+1')).toBe("'=1+1")
+    expect(escapeCsvInjection("=cmd|'/c calc'!A1")).toBe("'=cmd|'/c calc'!A1")
+    expect(escapeCsvInjection('+HYPERLINK("http://x")')).toBe('\'+HYPERLINK("http://x")')
+    expect(escapeCsvInjection('-2+3')).toBe("'-2+3")
+    expect(escapeCsvInjection('@SUM(A1)')).toBe("'@SUM(A1)")
+    expect(escapeCsvInjection('\tTabbed')).toBe("'\tTabbed")
+  })
+
+  it('leaves ordinary text untouched', () => {
+    expect(escapeCsvInjection('Groceries')).toBe('Groceries')
+    expect(escapeCsvInjection('12.50')).toBe('12.50')
+    expect(escapeCsvInjection('')).toBe('')
+  })
+
+  it('round-trips exactly through unescape', () => {
+    for (const v of ['=1+1', '@SUM(A1)', 'Groceries', "O'Brien", '-5', '', 'plain +tip']) {
+      expect(unescapeCsvInjection(escapeCsvInjection(v))).toBe(v)
+    }
+  })
+
+  it('unescape only strips a quote guarding a trigger char, not legit leading quotes', () => {
+    expect(unescapeCsvInjection("'hello")).toBe("'hello") // not guarded → left as-is
+    expect(unescapeCsvInjection("'=danger")).toBe('=danger') // guarded → stripped
   })
 })

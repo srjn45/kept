@@ -103,12 +103,14 @@ export function toMinorUnits(major: number, currency: string): number {
     throw new Error(`Invalid amount: ${major}`)
   }
   const factor = minorUnitFactor(currency)
-  // Round the scaled value; the tiny epsilon nudge defends against binary-float
-  // representation error (e.g. 1.005 * 1000 = 1004.9999999999999).
   const scaled = major * factor
-  const rounded =
-    scaled >= 0 ? Math.round(scaled + Number.EPSILON) : -Math.round(-scaled + Number.EPSILON)
-  return rounded
+  // Neutralise binary-float representation error BEFORE the final round. A fixed
+  // `Number.EPSILON` nudge is ~1000× too small at money magnitudes and does nothing for the
+  // common 2-decimal case (e.g. 1.005 * 100 = 100.49999999999999 would round DOWN to 100).
+  // Re-rounding to 15 significant digits collapses that trailing error (→ 100.5) so the
+  // half-away-from-zero round below is correct across 0/2/3-decimal currencies.
+  const corrected = Number(scaled.toPrecision(15))
+  return corrected >= 0 ? Math.round(corrected) : -Math.round(-corrected)
 }
 
 /** Convert integer minor units back to a major-unit number (may be fractional). */
