@@ -2,7 +2,7 @@ import { useLiveQuery } from 'drizzle-orm/expo-sqlite'
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useReducer, useState } from 'react'
 
-import { getSettings, ledgerLiveQuery, listEntries } from '@/data'
+import { ledgerLiveQuery, listEntries } from '@/data'
 import { getDatabase } from '@/db/client'
 
 import { LedgerManager } from './LedgerManager'
@@ -55,16 +55,16 @@ export function LedgerScreen() {
 
   const entries = listEntries(db, { ...toListFilters(selection), limit })
   const hasMore = entries.length === limit
-  const defaultCurrency = getSettings(db)?.defaultCurrency ?? 'INR'
 
   return (
     <LedgerManager
       db={db}
       entries={entries}
-      defaultCurrency={defaultCurrency}
       hasMore={hasMore}
       onLoadMore={() => setLimit((l) => l + PAGE_SIZE)}
       onChanged={refresh}
+      onAddEntry={() => router.push('/entry')}
+      onEditEntry={(entry) => router.push({ pathname: '/entry', params: { id: entry.id } })}
       onOpenCategories={() => router.push('/categories')}
       onOpenStats={() => router.push('/stats')}
       onOpenSettings={() => router.push('/settings')}

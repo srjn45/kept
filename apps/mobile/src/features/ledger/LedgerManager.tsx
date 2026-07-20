@@ -5,29 +5,19 @@ import { AmountText, Button, EmptyState, FAB, Screen, Snackbar } from '@/compone
 import {
   createEntry,
   getCategoryById,
-  listCategories,
   restoreEntry,
   softDeleteEntry,
-  updateEntry,
-  updateSettings,
   type AppDatabase,
   type EntryWithTags,
 } from '@/data'
 import { todayISO } from '@/domain'
-import type { Category } from '@/db/schema'
 
 import { LedgerRow } from './LedgerRow'
-import { EntryForm } from './EntryForm'
 import { FilterBar } from './FilterBar'
 import { hasActiveFilters, useLedgerFilterStore } from './filterStore'
 import { groupEntriesByDay } from './grouping'
-import {
-  duplicateEntryInput,
-  emptyFormValues,
-  entryToFormValues,
-  formToEntryInput,
-  type EntryFormValues,
-} from './entryForm'
+import { useLedgerToastStore } from './toastStore'
+import { duplicateEntryInput } from './entryForm'
 
 /** How long the delete Undo snackbar stays up (§6.7 recovery is 30 days; this is just the toast). */
 const SNACKBAR_MS = 5000
@@ -37,8 +27,6 @@ export type LedgerManagerProps = {
   db: AppDatabase
   /** The current windowed, ordered ledger page (read reactively by the route, §8 Phase 4). */
   entries: EntryWithTags[]
-  /** Default currency for a new entry (from `app_settings`). */
-  defaultCurrency: string
   /** Whether more rows may exist beyond the current window. */
   hasMore: boolean
   /** Grow the window (load-more on reach-end). */
@@ -49,6 +37,10 @@ export type LedgerManagerProps = {
    * `useLiveQuery` alone never re-renders on a local write); tests use it the same way.
    */
   onChanged?: () => void
+  /** Navigate to the add-expense screen (FAB / empty-state CTA). */
+  onAddEntry?: () => void
+  /** Navigate to the edit-expense screen for a row (tap a row). */
+  onEditEntry?: (entry: EntryWithTags) => void
   /** Navigate to the Categories screen (header entry point). */
   onOpenCategories?: () => void
   /** Navigate to the Stats/dashboard screen (header entry point, §8 Phase 6). */
@@ -57,7 +49,6 @@ export type LedgerManagerProps = {
   onOpenSettings?: () => void
 }
 
-type View_ = { mode: 'list' } | { mode: 'add' } | { mode: 'edit'; entry: EntryWithTags }
 type SnackState = { message: string; actionLabel?: string; onAction?: () => void }
 
 /**
@@ -69,17 +60,15 @@ type SnackState = { message: string; actionLabel?: string; onAction?: () => void
 export function LedgerManager({
   db,
   entries,
-  defaultCurrency,
   hasMore,
   onLoadMore,
   onChanged,
+  onAddEntry,
+  onEditEntry,
   onOpenCategories,
   onOpenStats,
   onOpenSettings,
 }: LedgerManagerProps) {
-  const [view, setView] = useState<View_>({ mode: 'list' })
-  const [busy, setBusy] = useState(false)
-  const [submitError, setSubmitError] = useState<string | undefined>()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [snack, setSnack] = useState<SnackState | null>(null)
   const snackTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -114,54 +103,38 @@ export function LedgerManager({
     setSnack(null)
   }, [])
 
+  // Drain a one-shot toast queued by the entry screen when it pops back here after an add /
+  // edit / delete (it can't show its own snackbar while navigating away). Show it through our
+  // snackbar; for a delete Undo, run the store's restore, then refresh the list and dismiss —
+  // the same effect as an inline row-delete Undo.
+  const pendingToast = useLedgerToastStore((s) => s.toast)
+  const clearToast = useLedgerToastStore((s) => s.clear)
+  useEffect(() => {
+    if (!pendingToast) return
+    clearToast()
+    const { message, actionLabel, onAction } = pendingToast
+    // Defer to a microtask so we don't setState synchronously in the effect body (cascading
+    // renders); we're returning to this screen, so a tick's delay is imperceptible.
+    Promise.resolve().then(() =>
+      showSnackbar({
+        message,
+        actionLabel,
+        onAction: onAction
+          ? () => {
+              onAction()
+              onChanged?.()
+              dismissSnackbar()
+            }
+          : undefined,
+      })
+    )
+  }, [pendingToast, clearToast, showSnackbar, dismissSnackbar, onChanged])
+
   const sections = useMemo(() => groupEntriesByDay(entries, todayISO()), [entries])
-
-  function backToList() {
-    setView({ mode: 'list' })
-    setSubmitError(undefined)
-  }
-
-  // Remember the currency just used as the default for the NEXT new entry (§7.3 "default is
-  // the last used currency") — the app_settings default is repurposed as a rolling "last
-  // used" value. Best-effort: the entry is already saved by the time this runs, so a failure
-  // here (e.g. a settings row that hasn't been seeded yet) must never surface as a save error.
-  function rememberLastCurrency(currency: string) {
-    if (currency === defaultCurrency) return
-    try {
-      updateSettings(db, { defaultCurrency: currency })
-    } catch {
-      // Non-critical — ignore.
-    }
-  }
-
-  async function handleSubmit(values: EntryFormValues) {
-    setBusy(true)
-    setSubmitError(undefined)
-    try {
-      if (view.mode === 'add') {
-        createEntry(db, formToEntryInput(values))
-        rememberLastCurrency(values.currency)
-        onChanged?.()
-        backToList()
-        showSnackbar({ message: 'Expense added.' })
-      } else if (view.mode === 'edit') {
-        updateEntry(db, view.entry.id, formToEntryInput(values))
-        rememberLastCurrency(values.currency)
-        onChanged?.()
-        backToList()
-        showSnackbar({ message: 'Changes saved.' })
-      }
-    } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : 'Could not save the expense.')
-    } finally {
-      setBusy(false)
-    }
-  }
 
   function handleDelete(entry: EntryWithTags) {
     softDeleteEntry(db, entry.id)
     setExpandedId(null)
-    if (view.mode !== 'list') backToList()
     onChanged?.()
     showSnackbar({
       message: `Deleted “${entry.title}”.`,
@@ -179,36 +152,6 @@ export function LedgerManager({
     setExpandedId(null)
     onChanged?.()
     showSnackbar({ message: `Duplicated “${entry.title}” to today.` })
-  }
-
-  // ---- Add / Edit form view ----
-  if (view.mode !== 'list') {
-    const editing = view.mode === 'edit' ? view.entry : null
-    // Active categories for the picker; re-read here so newly added ones show up.
-    const activeCategories = listCategories(db)
-    // Include the entry's own category even if it was later deactivated, so it shows selected.
-    const pickerCategories: Category[] = (() => {
-      if (!editing) return activeCategories
-      if (activeCategories.some((c) => c.id === editing.categoryId)) return activeCategories
-      const own = getCategoryById(db, editing.categoryId)
-      return own ? [...activeCategories, own] : activeCategories
-    })()
-
-    return (
-      <Screen scroll contentClassName="gap-4">
-        <EntryForm
-          mode={editing ? 'edit' : 'add'}
-          db={db}
-          categories={pickerCategories}
-          initial={editing ? entryToFormValues(editing) : emptyFormValues(defaultCurrency)}
-          onSubmit={handleSubmit}
-          onCancel={backToList}
-          onDelete={editing ? () => handleDelete(editing) : undefined}
-          busy={busy}
-          submitError={submitError}
-        />
-      </Screen>
-    )
   }
 
   // ---- List view (home) ----
@@ -294,7 +237,7 @@ export function LedgerManager({
                 onToggleActions={() => setExpandedId((id) => (id === item.id ? null : item.id))}
                 onEdit={() => {
                   setExpandedId(null)
-                  setView({ mode: 'edit', entry: item })
+                  onEditEntry?.(item)
                 }}
                 onDuplicate={() => handleDuplicate(item)}
                 onDelete={() => handleDelete(item)}
@@ -315,7 +258,7 @@ export function LedgerManager({
                 title="No expenses yet"
                 description="Record your first expense — it's a 5-second, one-thumb task. Your data stays on your device."
                 actionLabel="Add your first expense"
-                onAction={() => setView({ mode: 'add' })}
+                onAction={() => onAddEntry?.()}
                 testID="ledger-empty"
               />
             )
@@ -337,7 +280,7 @@ export function LedgerManager({
 
         <FAB
           accessibilityLabel="Add expense"
-          onPress={() => setView({ mode: 'add' })}
+          onPress={() => onAddEntry?.()}
           testID="ledger-add-fab"
         />
 

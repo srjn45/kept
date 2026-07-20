@@ -2,18 +2,22 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native'
 import { useReducer, useState, type ReactElement } from 'react'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
-import { createCategory, createEntry, getEntry, listEntries, searchTagSuggestions } from '@/data'
+import { createCategory, createEntry, getEntry, listEntries } from '@/data'
 import { todayISO } from '@/domain'
 import { createTestDatabase, type TestDatabase } from '@/db/__tests__/testDb'
 
 import { LedgerManager } from '../LedgerManager'
 
 /**
- * Integration tests for Phase 4 (§8): the REAL ledger UI driven against a REAL in-memory
+ * Integration tests for Phase 4 (§8): the REAL ledger list driven against a REAL in-memory
  * better-sqlite3 database (§3 — no DB mocks). `Harness` stands in for the route wrapper's
  * reactive read: it re-reads the windowed ledger whenever the manager reports a change
  * (`onChanged`) — exactly the mechanism that keeps the web build (where expo-sqlite's
  * change-listener is silent) live after every mutation.
+ *
+ * Add / edit now live on their own stacked route ({@link EntryManager}); the ledger only
+ * NAVIGATES there (via `onAddEntry` / `onEditEntry`). Those callbacks are asserted here; the
+ * form itself is covered by entryManager.test.tsx.
  */
 const PAGE_SIZE = 100
 
@@ -27,7 +31,15 @@ function renderLedger(ui: ReactElement) {
   return render(<SafeAreaProvider initialMetrics={SAFE_AREA_METRICS}>{ui}</SafeAreaProvider>)
 }
 
-function Harness({ db }: { db: TestDatabase['db'] }) {
+function Harness({
+  db,
+  onAddEntry,
+  onEditEntry,
+}: {
+  db: TestDatabase['db']
+  onAddEntry?: () => void
+  onEditEntry?: (entry: { id: string }) => void
+}) {
   const [, refresh] = useReducer((n: number) => n + 1, 0)
   const [limit, setLimit] = useState(PAGE_SIZE)
   const entries = listEntries(db, { limit })
@@ -36,10 +48,11 @@ function Harness({ db }: { db: TestDatabase['db'] }) {
     <LedgerManager
       db={db}
       entries={entries}
-      defaultCurrency="INR"
       hasMore={hasMore}
       onLoadMore={() => setLimit((l) => l + PAGE_SIZE)}
       onChanged={refresh}
+      onAddEntry={onAddEntry}
+      onEditEntry={onEditEntry}
       onOpenCategories={() => {}}
     />
   )
@@ -54,42 +67,21 @@ describe('LedgerManager (§8 Phase 4 — the core)', () => {
   })
   afterEach(() => h.close())
 
-  it('creates a debit entry from the form and it appears live in the day-grouped list', async () => {
-    const view = renderLedger(<Harness db={h.db} />)
-
-    fireEvent.press(view.getByText('Add your first expense'))
-    fireEvent.changeText(view.getByTestId('entry-title-input'), 'Lunch')
-    fireEvent.changeText(view.getByTestId('entry-amount-input'), '12.50')
-    fireEvent.press(view.getByTestId(`category-pick-${foodId}`))
-    fireEvent.press(view.getByTestId('entry-save'))
-
-    await waitFor(() => expect(view.getByText('Lunch')).toBeTruthy())
-
-    const rows = listEntries(h.db)
-    expect(rows).toHaveLength(1)
-    // Sign derived from the default Debit toggle → negative (§6.1).
-    expect(rows[0]).toMatchObject({ title: 'Lunch', amountMinor: -1250, categoryId: foodId })
-    // Grouped under Today with the day total rendered.
-    expect(view.getByTestId(`ledger-day-${todayISO()}`)).toBeTruthy()
-    // −1250 minor units → ₹12.50 net for the day.
-    expect(view.getByTestId(`ledger-day-total-${todayISO()}-INR`)).toHaveTextContent(/12\.50/)
-  })
-
-  it('derives a POSITIVE amount when the Credit toggle is chosen (no wrong-sign UI bug)', async () => {
-    const view = renderLedger(<Harness db={h.db} />)
-
+  it('navigates to the add screen from the FAB', () => {
+    const onAddEntry = jest.fn()
+    const view = renderLedger(<Harness db={h.db} onAddEntry={onAddEntry} />)
     fireEvent.press(view.getByTestId('ledger-add-fab'))
-    fireEvent.changeText(view.getByTestId('entry-title-input'), 'Refund')
-    fireEvent.changeText(view.getByTestId('entry-amount-input'), '5')
-    fireEvent.press(view.getByTestId('entry-type-credit'))
-    fireEvent.press(view.getByTestId(`category-pick-${foodId}`))
-    fireEvent.press(view.getByTestId('entry-save'))
-
-    await waitFor(() => expect(view.getByText('Refund')).toBeTruthy())
-    expect(listEntries(h.db)[0].amountMinor).toBe(500)
+    expect(onAddEntry).toHaveBeenCalledTimes(1)
   })
 
-  it('edits an entry and the change is reflected live', async () => {
+  it('navigates to the add screen from the empty-state CTA', () => {
+    const onAddEntry = jest.fn()
+    const view = renderLedger(<Harness db={h.db} onAddEntry={onAddEntry} />)
+    fireEvent.press(view.getByText('Add your first expense'))
+    expect(onAddEntry).toHaveBeenCalledTimes(1)
+  })
+
+  it('navigates to the edit screen for the tapped row, passing the entry', () => {
     const e = createEntry(h.db, {
       title: 'Old title',
       categoryId: foodId,
@@ -98,15 +90,12 @@ describe('LedgerManager (§8 Phase 4 — the core)', () => {
       occurredOn: todayISO(),
       tags: [],
     })
-    const view = renderLedger(<Harness db={h.db} />)
+    const onEditEntry = jest.fn()
+    const view = renderLedger(<Harness db={h.db} onEditEntry={onEditEntry} />)
 
     fireEvent.press(view.getByTestId(`ledger-row-${e.id}`))
-    fireEvent.changeText(view.getByTestId('entry-title-input'), 'New title')
-    fireEvent.press(view.getByTestId('entry-save'))
-
-    await waitFor(() => expect(view.getByText('New title')).toBeTruthy())
-    expect(view.queryByText('Old title')).toBeNull()
-    expect(getEntry(h.db, e.id)?.title).toBe('New title')
+    expect(onEditEntry).toHaveBeenCalledTimes(1)
+    expect(onEditEntry.mock.calls[0][0]).toMatchObject({ id: e.id })
   })
 
   it('deletes an entry (it disappears) and Undo restores it live (§6.7)', async () => {
@@ -161,47 +150,6 @@ describe('LedgerManager (§8 Phase 4 — the core)', () => {
     expect(dup.tags).toEqual(['cafe'])
     // The clone shows under Today.
     expect(view.getByTestId(`ledger-day-${todayISO()}`)).toBeTruthy()
-  })
-
-  it('upserts tag suggestions when an entry is saved with tags (§6.2)', async () => {
-    const view = renderLedger(<Harness db={h.db} />)
-
-    fireEvent.press(view.getByTestId('ledger-add-fab'))
-    fireEvent.changeText(view.getByTestId('entry-title-input'), 'Latte')
-    fireEvent.changeText(view.getByTestId('entry-amount-input'), '4')
-    fireEvent.press(view.getByTestId(`category-pick-${foodId}`))
-
-    // Reveal the "More" section, type a tag and commit it.
-    fireEvent.press(view.getByTestId('entry-more-toggle'))
-    fireEvent.changeText(view.getByTestId('tag-text-input'), 'espresso')
-    fireEvent(view.getByTestId('tag-text-input'), 'submitEditing')
-    expect(view.getByTestId('tag-chip-espresso')).toBeTruthy()
-
-    fireEvent.press(view.getByTestId('entry-save'))
-
-    await waitFor(() => expect(view.getByText('Latte')).toBeTruthy())
-    expect(searchTagSuggestions(h.db, 'esp')).toContain('espresso')
-    expect(listEntries(h.db)[0].tags).toEqual(['espresso'])
-  })
-
-  it('converts a typed space into a tag chip and keeps typing the next one (§6.2)', () => {
-    const view = renderLedger(<Harness db={h.db} />)
-    fireEvent.press(view.getByTestId('ledger-add-fab'))
-    fireEvent.press(view.getByTestId('entry-more-toggle'))
-
-    fireEvent.changeText(view.getByTestId('tag-text-input'), 'week end')
-    expect(view.getByTestId('tag-chip-week')).toBeTruthy()
-    expect(view.getByTestId('tag-text-input').props.value).toBe('end')
-  })
-
-  it('converts a typed comma into a tag chip (§6.2)', () => {
-    const view = renderLedger(<Harness db={h.db} />)
-    fireEvent.press(view.getByTestId('ledger-add-fab'))
-    fireEvent.press(view.getByTestId('entry-more-toggle'))
-
-    fireEvent.changeText(view.getByTestId('tag-text-input'), 'coffee,')
-    expect(view.getByTestId('tag-chip-coffee')).toBeTruthy()
-    expect(view.getByTestId('tag-text-input').props.value).toBe('')
   })
 
   it('renders a correct per-day section total for multiple same-day entries', () => {

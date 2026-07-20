@@ -50,7 +50,6 @@ function Harness({ db, pageSize = 100 }: { db: TestDatabase['db']; pageSize?: nu
     <LedgerManager
       db={db}
       entries={entries}
-      defaultCurrency="INR"
       hasMore={hasMore}
       onLoadMore={() => setLimit((l) => l + pageSize)}
       onChanged={refresh}
