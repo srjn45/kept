@@ -52,6 +52,8 @@
   .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg); font-weight: 700; }
   .brand img { width: 30px; height: 30px; border-radius: 8px; }
   .brand span { font-size: 17px; }
+  .brand-text { display: inline-flex; flex-direction: column; line-height: 1.1; }
+  .brand-tag { font-size: 11px; font-weight: 500; color: var(--muted); }
   .back { margin-left: auto; font-size: 14px; color: var(--brand); text-decoration: none; font-weight: 600; }
   .back:hover { text-decoration: underline; }
   main { padding: 48px 0 72px; }
@@ -82,7 +84,7 @@
 <body>
 <header>
   <div class="wrap">
-    <a class="brand" href="./index.html"><img src="./assets/icon.png" alt="" /> <span>Expense&nbsp;Manager</span></a>
+    <a class="brand" href="./index.html"><img src="./assets/icon.png" alt="" /> <span class="brand-text"><span>Kept</span><span class="brand-tag">Private expense tracker</span></span></a>
     <a class="back" href="./index.html">← Back to site</a>
   </div>
 </header>
