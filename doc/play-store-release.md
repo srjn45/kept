@@ -47,6 +47,61 @@ eas build --platform android --profile production
 `autoIncrement` bumps the Android `versionCode` automatically. Keep `app.json`'s
 `expo.version` in sync with `package.json` `version` (the repo enforces this).
 
+## Build locally (no EAS)
+
+EAS is optional — Play only cares about a signed `.aab`. You can build one on your
+machine with no build quota. Requires JDK 21 and the Android SDK (platform + build-tools
+for the Expo SDK's `compileSdk`; SDK 57 → android-36).
+
+### Upload keystore (one-time)
+
+The `android/` folder is generated (CNG) and gitignored, so signing lives in a config
+plugin (`apps/mobile/plugins/withReleaseSigning.js`) that re-injects it on every prebuild.
+Secrets stay **out of the repo** — the plugin reads them from Gradle properties.
+
+1. Generate the *upload* keystore once (kept outside the repo):
+
+   ```bash
+   keytool -genkeypair -v -keystore ~/keystores/kept-upload.jks \
+     -alias kept-upload -keyalg RSA -keysize 2048 -validity 10000
+   ```
+
+2. Put the credentials in `~/.gradle/gradle.properties` (global, never committed):
+
+   ```properties
+   KEPT_UPLOAD_STORE_FILE=/home/<you>/keystores/kept-upload.jks
+   KEPT_UPLOAD_STORE_PASSWORD=...
+   KEPT_UPLOAD_KEY_ALIAS=kept-upload
+   KEPT_UPLOAD_KEY_PASSWORD=...
+   ```
+
+> **Back up the `.jks` and its password** (password manager + offline copy). This is the
+> *upload* key; if lost you can request an upload-key reset from Google, but the keystore
+> and password are the only way to keep signing new uploads yourself. Never commit either.
+
+### Build
+
+```bash
+cd apps/mobile
+export ANDROID_HOME=$HOME/Android/Sdk
+npx expo prebuild --platform android --clean
+cd android && ./gradlew :app:bundleRelease --no-daemon
+# → android/app/build/outputs/bundle/release/app-release.aab
+```
+
+`versionCode`/`versionName` come from `app.json`; bump them manually per release. Upload
+the `.aab` in the Console (first upload is manual either way — see below).
+
+### Verify before uploading
+
+```bash
+BT=bundletool.jar   # com.android.tools.build:bundletool
+AAB=android/app/build/outputs/bundle/release/app-release.aab
+java -jar $BT dump manifest --bundle $AAB --xpath /manifest/@package                 # com.srjn45.kept
+java -jar $BT dump manifest --bundle $AAB --xpath /manifest/uses-permission/@android:name  # no INTERNET/storage
+unzip -p $AAB META-INF/*.RSA | keytool -printcert | grep SHA256   # matches your upload key
+```
+
 ## Submit
 
 After the manual first upload, later releases can go straight to Play:

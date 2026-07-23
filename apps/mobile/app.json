@@ -55,7 +55,8 @@
       "expo-sqlite",
       "expo-secure-store",
       "expo-sharing",
-      "expo-localization"
+      "expo-localization",
+      "./plugins/withReleaseSigning"
     ],
     "experiments": {
       "typedRoutes": true,
