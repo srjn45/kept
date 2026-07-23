@@ -127,10 +127,13 @@ jobs:
         run: cp android/app/build/outputs/apk/release/app-release.apk kept.apk
 
       - name: Verify APK is signed with the release key
+        # Use apksigner (not unzip META-INF/*.RSA): the release APK is signed
+        # with APK Signature Scheme v2/v3, whose signature lives in the APK
+        # Signing Block, so there is no META-INF/*.RSA entry to read.
         run: |
-          SIG=$(unzip -p kept.apk META-INF/*.RSA | keytool -printcert | grep SHA256 | tr -d ' ')
-          echo "APK signer: $SIG"
-          test -n "$SIG"
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort | tail -1)
+          echo "Using: $APKSIGNER"
+          "$APKSIGNER" verify --print-certs --verbose kept.apk
 
       # Tag build → publish a GitHub Release the promo site can serve.
       - name: Create GitHub Release
