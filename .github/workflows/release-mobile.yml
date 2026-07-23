@@ -105,26 +105,17 @@ jobs:
       - name: Prebuild native Android project
         run: npx expo prebuild --platform android --no-install
 
-      # DIAGNOSTIC (temporary): Gradle's Expo autolinking plugin runs this exact
-      # node command during projectsEvaluated and captures its stdout — so on
-      # failure the real error is discarded and only "node exit value 1" shows.
-      # Run it here with output visible to capture the true error. Remove once fixed.
-      - name: DIAG - run expo inline-modules autolinking directly
-        working-directory: apps/mobile
-        continue-on-error: true
-        run: |
-          node --version
-          EXPO="$PWD/node_modules/expo/android"
-          echo "cwd(before cd)=$PWD  EXPO=$EXPO"
-          cd android
-          echo "gradle-exec cwd=$PWD"
-          set -x
-          node --no-warnings --eval "require('expo/bin/autolinking')" \
-            expo-modules-autolinking mirror-kotlin-inline-modules \
-            --kotlin-files-mirror-directory "$EXPO/src/main/java/inline/modules" \
-            --inline-modules-list-directory "$EXPO/build/inline/modules" \
-            --watched-directories-serialized "[]" 2>&1
-          echo "DIAG mirror exit: $?"
+      # Work around an Expo autolinking Gradle-plugin quirk: during
+      # projectsEvaluated it runs `expo-modules-autolinking
+      # mirror-kotlin-inline-modules` with
+      # `--watched-directories-serialized <findProperty(...) ?: emptyList()>`.
+      # When the property is unset, Gradle flattens the empty list to *zero*
+      # args, so the flag is passed with no value and node aborts with
+      # "argument missing" (surfaced only as a bare "node exit value 1"
+      # because Gradle captures that command's stdout). Setting the property to
+      # a literal empty-JSON-array string makes it a single valid argument.
+      - name: Work around Expo autolinking empty-list arg
+        run: echo 'expo.inlineModules.watchedDirectories=[]' >> android/gradle.properties
 
       - name: Decode signing keystore
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
