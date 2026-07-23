@@ -33,6 +33,10 @@ permissions:
 env:
   # Keep in sync with the Expo SDK's Android toolchain (SDK 57 → NDK 27.1).
   ANDROID_NDK_VERSION: '27.1.12297006'
+  # Gradle spawns node for Expo/RN autolinking + codegen during configuration.
+  # The default heap is too small for these on memory-limited runners, so the
+  # node subprocess can die with a bare "exit value 1" mid-config. Give it room.
+  NODE_OPTIONS: '--max-old-space-size=4096'
 
 jobs:
   verify:
@@ -115,7 +119,7 @@ jobs:
 
       - name: Build signed release APK
         working-directory: apps/mobile/android
-        run: ./gradlew :app:assembleRelease --no-daemon
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
 
       - name: Stage APK as kept.apk
         run: cp android/app/build/outputs/apk/release/app-release.apk kept.apk
