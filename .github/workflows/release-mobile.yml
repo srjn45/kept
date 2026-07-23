@@ -113,6 +113,11 @@ jobs:
       - name: Configure release signing
         run: |
           {
+            # Prebuild generates gradle.properties WITHOUT a trailing newline
+            # (last line: expo.inlineModules.watchedDirectories=[]). Start with
+            # one, or the first property here glues onto that line and breaks
+            # expo autolinking's JSON parse at Gradle configure time.
+            echo ""
             echo "KEPT_UPLOAD_STORE_FILE=$RUNNER_TEMP/release.jks"
             echo "KEPT_UPLOAD_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}"
             echo "KEPT_UPLOAD_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}"
