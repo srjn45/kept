@@ -5,13 +5,13 @@
     "version": "1.1.5",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "expensemanager",
+    "scheme": "kept",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/icon.png"
     },
     "android": {
-      "package": "com.srjn45.expensemanager",
+      "package": "com.srjn45.kept",
       "allowBackup": false,
       "blockedPermissions": [
         "android.permission.INTERNET",
@@ -28,7 +28,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
-      "versionCode": 4
+      "versionCode": 5
     },
     "web": {
       "output": "static",
