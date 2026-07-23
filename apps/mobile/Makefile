@@ -1,4 +1,4 @@
-# Expense Manager Mobile (Expo) — run from apps/mobile/ (or: make -C apps/mobile <target>)
+# Kept Mobile (Expo) — run from apps/mobile/ (or: make -C apps/mobile <target>)
 
 .PHONY: run run-web run-android run-ios lint format format-check typecheck test build db-generate export-web install
 

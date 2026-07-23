@@ -1,4 +1,4 @@
-# Expense Manager logo — vector source
+# Kept logo — vector source
 
 Editable source of truth for the app icon set. Edit these SVGs, then
 regenerate the PNGs with:

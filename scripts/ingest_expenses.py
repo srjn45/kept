@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Ingest expense CSV files into the Expense Manager API.
+Ingest expense CSV files into the Kept API.
 
 Reads a CSV with columns: date (day), description, category, tags, items, amount,
 payment method. Month and year are taken from the filename (expense-<month>-<year>.csv).
@@ -292,7 +292,7 @@ def create_ledger_entries(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Ingest expense CSV into Expense Manager API (first 7 columns only)."
+        description="Ingest expense CSV into Kept API (first 7 columns only)."
     )
     parser.add_argument(
         "csv_path",

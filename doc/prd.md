@@ -1,6 +1,6 @@
-# Product Requirements Document: Expense Manager
+# Product Requirements Document: Kept
 
-**Product name:** Expense Manager  
+**Product name:** Kept  
 **Version:** 0.1  
 **Last updated:** February 2026  
 **Status:** Draft  
@@ -9,7 +9,7 @@
 
 ## 1. Product overview
 
-Expense Manager is a web-first application for recording, categorizing, and visualizing personal (or small-team) expenses. Users maintain a ledger, define categories and tags, attach payment methods, and view charts (monthly totals, by category, by payment method) and custom tag-based totals. The product will start as a web app and may expand to mobile (native or hybrid) later.
+Kept is a web-first application for recording, categorizing, and visualizing personal (or small-team) expenses. Users maintain a ledger, define categories and tags, attach payment methods, and view charts (monthly totals, by category, by payment method) and custom tag-based totals. The product will start as a web app and may expand to mobile (native or hybrid) later.
 
 ---
 

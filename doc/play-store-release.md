@@ -11,7 +11,7 @@ Google requires a hosted privacy policy, even though the app collects nothing.
 It lives with the promo site and is published via GitHub Pages:
 
 ```
-https://srjn45.github.io/expense-manager/privacy.html
+https://srjn45.github.io/kept/privacy.html
 ```
 
 Paste that into **Play Console → App content → Privacy policy**.

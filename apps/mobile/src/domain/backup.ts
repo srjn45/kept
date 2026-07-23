@@ -120,7 +120,7 @@ export function parseBackupText(text: string): BackupParseResult {
     return {
       ok: false,
       code: 'not-a-backup',
-      message: 'This file is not an Expense Manager backup.',
+      message: 'This file is not a Kept backup.',
     }
   }
 
@@ -129,7 +129,7 @@ export function parseBackupText(text: string): BackupParseResult {
     return {
       ok: false,
       code: 'not-a-backup',
-      message: 'This file is missing a schemaVersion — it is not an Expense Manager backup.',
+      message: 'This file is missing a schemaVersion — it is not a Kept backup.',
     }
   }
   if (!SUPPORTED_SCHEMA_VERSIONS.includes(version)) {

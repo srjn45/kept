@@ -85,7 +85,7 @@ export function SettingsManager({
       setNotice(null)
       const content = serializeBackup(db, appVersion)
       await exportFile({
-        filename: `expense-manager-backup-${todayISO()}.json`,
+        filename: `kept-backup-${todayISO()}.json`,
         mimeType: 'application/json',
         content,
       })
@@ -97,7 +97,7 @@ export function SettingsManager({
       setNotice(null)
       const content = exportEntriesCsv(db)
       await exportFile({
-        filename: `expense-manager-${todayISO()}.csv`,
+        filename: `kept-${todayISO()}.csv`,
         mimeType: 'text/csv',
         content,
       })

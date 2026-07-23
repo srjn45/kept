@@ -2,7 +2,7 @@ name: Release Mobile
 
 # Cuts a public release: verifies the mobile app (mirrors Mobile CI), builds an
 # Android APK via EAS, and publishes it as a GitHub Release so the promo site's
-# fixed download URL (releases/latest/download/expense-manager.apk) picks it up.
+# fixed download URL (releases/latest/download/kept.apk) picks it up.
 # See RELEASING.md.
 #
 # Trigger by bumping apps/mobile/app.json's expo.version (and package.json's
@@ -84,20 +84,20 @@ jobs:
       - name: Download APK
         run: |
           URL=$(node -p "require('./eas-build.json')[0].artifacts.applicationArchiveUrl")
-          curl -sL "$URL" -o expense-manager.apk
+          curl -sL "$URL" -o kept.apk
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            ./expense-manager.apk#expense-manager.apk \
+            ./kept.apk#kept.apk \
             --repo "${{ github.repository }}" \
             --target main \
-            --title "Expense Manager $GITHUB_REF_NAME" \
+            --title "Kept $GITHUB_REF_NAME" \
             --generate-notes
 
       - name: Verify public download link
         run: |
           curl -sL -o /dev/null -w '%{http_code} %{content_type}\n' \
-            "https://github.com/${{ github.repository }}/releases/latest/download/expense-manager.apk"
+            "https://github.com/${{ github.repository }}/releases/latest/download/kept.apk"

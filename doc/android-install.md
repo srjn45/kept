@@ -1,11 +1,11 @@
 # Android install (EAS Build → sideload)
 
-How to produce an installable Android build of Expense Manager and put it on a
+How to produce an installable Android build of Kept and put it on a
 real device. This is the **Phase 8** delivery path from the
 [master plan](master-plan.md) §8: a LAN/sideloaded APK, not a Play Store
 release.
 
-> **Data stays on your device.** Expense Manager is local-first (on-device
+> **Data stays on your device.** Kept is local-first (on-device
 > SQLite, PIN lock, no backend). Building and sideloading changes nothing about
 > that — the APK ships no analytics or network calls.
 
@@ -73,7 +73,7 @@ Pick whichever is convenient:
   any file-transfer app on the same network.
 - **adb (developer machine):**
   ```bash
-  adb install path/to/expense-manager.apk
+  adb install path/to/kept.apk
   ```
   `adb install` skips the manual steps below entirely.
 
@@ -92,7 +92,7 @@ Android blocks installing APKs from outside the Play Store until you allow it
    - Manual path: **Settings → Apps → Special app access → Install unknown
      apps** → pick the app → toggle **Allow**.
 3. Go back and tap **Install**.
-4. Open **Expense Manager**. On first launch it asks you to **create a PIN** —
+4. Open **Kept**. On first launch it asks you to **create a PIN** —
    that's the local lock; there is no account or sign-in.
 
 You can turn "Allow from this source" back off afterwards if you prefer; it's

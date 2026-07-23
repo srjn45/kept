@@ -1,4 +1,4 @@
-# Releasing Expense Manager
+# Releasing Kept
 
 How to cut a new public release. As of `.github/workflows/release-mobile.yml`,
 pushing a `vX.Y.Z` tag automates the build/download/publish/verify steps — you
@@ -8,10 +8,10 @@ The promotional site's **Download for Android** buttons link to a fixed URL
 that GitHub redirects to the newest release:
 
 ```
-https://github.com/srjn45/expense-manager/releases/latest/download/expense-manager.apk
+https://github.com/srjn45/kept/releases/latest/download/kept.apk
 ```
 
-> ⚠️ **The asset MUST be named `expense-manager.apk` on every release.** GitHub's
+> ⚠️ **The asset MUST be named `kept.apk` on every release.** GitHub's
 > `releases/latest/download/<name>` redirect only works if `<name>` is identical
 > across releases. A versioned filename (e.g. `expense-manager-1.1.0.apk`) breaks
 > the website button. Keep the version in the release **tag/title**, not the file.
@@ -62,10 +62,10 @@ Pushing the tag triggers `.github/workflows/release-mobile.yml`, which:
    keystore, so updates install in place without wiping data).
 4. Downloads the finished build's artifact and publishes it as a GitHub
    Release (`gh release create ... --generate-notes`), attached as the fixed
-   `expense-manager.apk` name.
+   `kept.apk` name.
 5. Verifies the public download redirect resolves.
 
-Watch it at `https://github.com/srjn45/expense-manager/actions`. Requires an
+Watch it at `https://github.com/srjn45/kept/actions`. Requires an
 `EXPO_TOKEN` repo secret (`npx eas-cli token:create`, then
 `gh secret set EXPO_TOKEN`) — without it, the EAS build step fails auth.
 
@@ -80,23 +80,23 @@ npx eas-cli@latest build --platform android --profile preview
 # newest finished Android build's APK url
 URL=$(npx eas-cli@latest build:list --platform android --limit 1 --non-interactive --json \
   | python3 -c "import sys,json;print(json.load(sys.stdin)[0]['artifacts']['applicationArchiveUrl'])")
-curl -sL "$URL" -o expense-manager.apk
+curl -sL "$URL" -o kept.apk
 
-gh release create v1.1.0 ./expense-manager.apk#expense-manager.apk \
-  --repo srjn45/expense-manager \
+gh release create v1.1.0 ./kept.apk#kept.apk \
+  --repo srjn45/kept \
   --target main \
-  --title "Expense Manager v1.1.0" \
+  --title "Kept v1.1.0" \
   --generate-notes
 ```
 
-The `#expense-manager.apk` suffix sets the uploaded asset's display name — keep
+The `#kept.apk` suffix sets the uploaded asset's display name — keep
 it constant even if your local file is named differently.
 
 ## 4. Verify
 
 ```bash
 curl -sL -o /dev/null -w '%{http_code} %{content_type}\n' \
-  https://github.com/srjn45/expense-manager/releases/latest/download/expense-manager.apk
+  https://github.com/srjn45/kept/releases/latest/download/kept.apk
 # expect: 200 application/vnd.android.package-archive
 ```
 

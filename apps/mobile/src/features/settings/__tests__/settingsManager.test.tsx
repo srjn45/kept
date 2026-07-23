@@ -98,7 +98,7 @@ describe('SettingsManager (§7.5 / §8 Phase 7)', () => {
     await waitFor(() => expect(io.exportFile).toHaveBeenCalled())
     const req = io.exports[0]
     expect(req.mimeType).toBe('application/json')
-    expect(req.filename).toMatch(/^expense-manager-backup-.*\.json$/)
+    expect(req.filename).toMatch(/^kept-backup-.*\.json$/)
     const parsed = parseBackupText(req.content)
     expect(parsed.ok).toBe(true)
     if (parsed.ok) {

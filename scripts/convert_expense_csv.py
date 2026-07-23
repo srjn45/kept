@@ -2,7 +2,7 @@
 """
 Convert a personal trip-expense CSV (day-of-month, description, category, tags,
 items, amount, payment method — plus any number of trailing analytical columns,
-which are ignored) into the CSV format Expense Manager's Settings -> Import
+which are ignored) into the CSV format Kept's Settings -> Import
 accepts: date,title,amount,currency,category,tags,description
 (see apps/mobile/src/data/backup.ts).
 
@@ -41,7 +41,7 @@ MONTH_NAMES = [
     'july', 'august', 'september', 'october', 'november', 'december',
 ]
 
-# Maps this trip-log's free-form category labels onto Expense Manager's preloaded
+# Maps this trip-log's free-form category labels onto Kept's preloaded
 # categories (apps/mobile/src/db/seed.ts SEED_CATEGORY_NAMES), so imported rows land
 # in the app's existing categories instead of spawning near-duplicates ("food" vs
 # "Food & Dining"). A category not listed here is passed through unchanged — the

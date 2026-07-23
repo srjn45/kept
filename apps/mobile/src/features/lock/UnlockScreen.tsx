@@ -78,7 +78,7 @@ export function UnlockScreen({ onForgot }: UnlockScreenProps) {
   const tryBiometric = useCallback(async () => {
     setBusy(true)
     try {
-      const ok = await authenticateWithBiometrics('Unlock Expense Manager')
+      const ok = await authenticateWithBiometrics('Unlock Kept')
       if (ok) await onUnlocked()
     } finally {
       setBusy(false)

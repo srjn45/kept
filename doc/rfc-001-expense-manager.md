@@ -1,4 +1,4 @@
-# RFC-001: Expense Manager — Architecture, API & Frontend
+# RFC-001: Kept — Architecture, API & Frontend
 
 **Status:** Draft  
 **Created:** February 2026  
@@ -8,7 +8,7 @@
 
 ## 1. Summary
 
-This RFC defines the architecture, API contract, data model, and frontend approach for **Expense Manager**, a web-first app for recording, categorizing, and visualizing personal expenses. The system uses a **React + Vite** frontend and a **Python FastAPI** backend (with **uv**), backed by **PostgreSQL**. The API is REST under `/api/v1/` with cursor-paginated ledger (sorted by transaction date descending), soft deletes for ledger and master data, tags as plain strings on entries with a suggestion store for autocomplete, and analytics endpoints for monthly and tag-based views. A single RFC covers both backend and frontend; this document is the source of truth for the contract and high-level UI.
+This RFC defines the architecture, API contract, data model, and frontend approach for **Kept**, a web-first app for recording, categorizing, and visualizing personal expenses. The system uses a **React + Vite** frontend and a **Python FastAPI** backend (with **uv**), backed by **PostgreSQL**. The API is REST under `/api/v1/` with cursor-paginated ledger (sorted by transaction date descending), soft deletes for ledger and master data, tags as plain strings on entries with a suggestion store for autocomplete, and analytics endpoints for monthly and tag-based views. A single RFC covers both backend and frontend; this document is the source of truth for the contract and high-level UI.
 
 ---
 

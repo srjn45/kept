@@ -42,13 +42,13 @@ The 14-day clock only counts while you have ≥12 testers opted in, so recruit a
 
 > **Subject: Help me test my app on Google Play (2 mins to set up)**
 >
-> Hi! I've built a small Android app — **Expense Manager**, a private expense tracker that
+> Hi! I've built a small Android app — **Kept**, a private expense tracker that
 > keeps all your data on your own phone (no account, no cloud, no ads). Google requires 12
 > testers before I can publish it publicly, and I'd really appreciate your help.
 >
 > It's a two-step setup, then you can ignore it:
 > 1. Tap this link on your Android phone and tap **"Become a tester"**: **[OPT-IN URL HERE]**
-> 2. Then install "Expense Manager" from the Play Store link on that same page.
+> 2. Then install "Kept" from the Play Store link on that same page.
 >
 > That's it — you don't have to actively test anything. Just please **keep it installed for
 > ~2 weeks** (that's the part Google checks). Feedback is a bonus, not required.

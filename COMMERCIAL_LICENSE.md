@@ -1,6 +1,6 @@
 # Commercial License
 
-Expense Manager is available under a **dual license**:
+Kept is available under a **dual license**:
 
 - **Non-commercial use** is free under the [PolyForm Noncommercial License 1.0.0](LICENSE) (see [LICENSE](LICENSE)).
 - **Commercial or production use** requires a separate paid license from the copyright holder.
@@ -18,9 +18,9 @@ Use of this software for any commercial purpose—including but not limited to:
 
 ## Obtaining a commercial license
 
-To use Expense Manager for commercial or production use, please contact the copyright holder to discuss terms and pricing:
+To use Kept for commercial or production use, please contact the copyright holder to discuss terms and pricing:
 
-- **Repository:** [github.com/srjn45/expense-manager](https://github.com/srjn45/expense-manager)
+- **Repository:** [github.com/srjn45/kept](https://github.com/srjn45/kept)
 - **Contact:** srajanpathak45@gmail.com
 
 Commercial licenses typically grant rights to use, modify, and distribute the software for commercial purposes without the restrictions of the non-commercial license.

@@ -8,12 +8,12 @@ Ready-to-paste text for the Play Console. Character limits noted; all fields bel
 
 ### App name (max 30)
 ```
-Expense Manager
+Kept
 ```
-Alternatives if you want it more descriptive / distinctive (the name need not be unique, but "Expense Manager" is a crowded term in search):
+Alternatives if you want the store name more descriptive (the display name need not be unique; "Kept" on its own is short and brandable but not self-explanatory, so pairing it with a descriptor helps discovery):
 ```
-Expense Manager: Private
-Expense Manager — Offline
+Kept: Expense Tracker
+Kept — Private Expenses
 ```
 
 ### Short description (max 80)
@@ -24,9 +24,9 @@ Private, local-first expense tracker. No account, no cloud, no tracking.
 
 ### Full description (max 4000)
 ```
-Expense Manager is a private, local-first expense tracker. Every number you enter stays on your device — there is no account to create, no server to sync to, and nothing to track. It is the simple, honest way to see where your money goes.
+Kept is a private, local-first expense tracker. Every number you enter stays on your device — there is no account to create, no server to sync to, and nothing to track. It is the simple, honest way to see where your money goes.
 
-WHY EXPENSE MANAGER
+WHY KEPT
 
 • Truly private by design. There is no backend. Your data lives in an on-device database and never leaves your phone. No sign-up, no email, no cloud.
 • No ads, ever. No trackers, no analytics, no selling your data — because none of it is collected in the first place.
@@ -46,7 +46,7 @@ FEATURES
 
 YOUR DATA, YOUR DEVICE
 
-Expense Manager is built on a simple principle: your spending is nobody's business but yours. There is no cloud account, because there is no cloud. If you want your data elsewhere, export a CSV. If you want it gone, wipe it in-app or just uninstall — there is no remote copy anywhere, because there never was one.
+Kept is built on a simple principle: your spending is nobody's business but yours. There is no cloud account, because there is no cloud. If you want your data elsewhere, export a CSV. If you want it gone, wipe it in-app or just uninstall — there is no remote copy anywhere, because there never was one.
 
 Free, private, and refreshingly simple.
 ```
@@ -55,8 +55,8 @@ Free, private, and refreshingly simple.
 - **App category:** Finance
 - **Tags:** expense tracker, budget, personal finance, privacy
 - **Contact email:** srajanpathak45@gmail.com
-- **Privacy policy URL:** https://srjn45.github.io/expense-manager/privacy.html
-- **Website (optional):** https://srjn45.github.io/expense-manager/
+- **Privacy policy URL:** https://srjn45.github.io/kept/privacy.html
+- **Website (optional):** https://srjn45.github.io/kept/
 
 ### Graphic assets required (not text — you'll need to produce these)
 - **App icon:** 512 × 512 PNG (32-bit, with alpha)

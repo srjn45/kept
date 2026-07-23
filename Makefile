@@ -1,4 +1,4 @@
-# Expense Manager — run from project root
+# Kept — run from project root
 # Apps: make -C apps/mobile <target> | make -C apps/web <target> | make -C apps/api <target>
 # This Makefile provides combined targets and local Docker Compose.
 #

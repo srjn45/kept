@@ -1,4 +1,4 @@
-# Frontend Implementation Plan — Expense Manager
+# Frontend Implementation Plan — Kept
 
 References: [doc/prd.md](prd.md), [doc/rfc-001-expense-manager.md](rfc-001-expense-manager.md), and the existing API in [apps/api/](../apps/api/).
 
@@ -41,7 +41,7 @@ Implement in this order so each page has the APIs and navigation it needs. Each 
   - Add an npm script (e.g. `generate:api`) that runs the generator; run it after API changes or in CI so types stay current.
 - Add **TanStack Query** provider and a default `QueryClient` (e.g. staleTime 1–2 min for list data).
 - **App shell UI (to visualize):**
-  - **Desktop:** A persistent **sidebar** on the left (~200–240px wide). At the top, a small logo or "Expense Manager" text. Below it, a vertical list of nav links: **Ledger**, **Dashboard**, **Payment methods**, **Categories**, **Custom query**. Active route is visually highlighted (e.g. background + left border or bold). At the bottom of the sidebar, optional footer (e.g. "v0.1").
+  - **Desktop:** A persistent **sidebar** on the left (~200–240px wide). At the top, a small logo or "Kept" text. Below it, a vertical list of nav links: **Ledger**, **Dashboard**, **Payment methods**, **Categories**, **Custom query**. Active route is visually highlighted (e.g. background + left border or bold). At the bottom of the sidebar, optional footer (e.g. "v0.1").
   - **Main content area** fills the rest of the viewport; padding (e.g. 24px). Each route renders its page content here.
   - **Mobile (optional for Phase 0):** Collapsible sidebar (hamburger) or bottom nav for the five items; same routes.
 - No dashboard/charts content yet; "Dashboard" and "Custom query" can render a simple "Coming soon" or "Dashboard" / "Custom query" heading only.

@@ -1,4 +1,4 @@
-# Expense Manager — Mobile (Expo)
+# Kept — Mobile (Expo)
 
 Local-first expense manager for **web, Android, and iOS** from one Expo/React Native
 codebase. All data lives in on-device SQLite; there is no backend and no account.

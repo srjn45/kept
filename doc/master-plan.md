@@ -1,4 +1,4 @@
-# Master Plan — Expense Manager (Local-First Rebuild)
+# Master Plan — Kept (Local-First Rebuild)
 
 **Status:** Active — source of truth
 **Created:** 2026-07-04
@@ -10,7 +10,7 @@ This plan is written to be executed by other agents. Read this file top-to-botto
 
 ## 1. Vision & scope
 
-Expense Manager is a **personal, local-first** app to record daily expenses and analyse them by category and tags. It runs on **web, Android, and iOS from a single codebase**. Its promise to the user is: **your data stays on your device** — there is no backend, no account, no network dependency.
+Kept is a **personal, local-first** app to record daily expenses and analyse them by category and tags. It runs on **web, Android, and iOS from a single codebase**. Its promise to the user is: **your data stays on your device** — there is no backend, no account, no network dependency.
 
 **MVP scope (this plan):** record and manage expenses (a ledger), organise them with categories and tags, filter/search, and see basic stats. Lock the app with a PIN.
 
