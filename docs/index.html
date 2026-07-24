@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Kept — a local-first expense tracker that never leaves your device</title>
 <meta name="description" content="Kept is a private, local-first personal expense tracker for Android, iOS and the web. On-device SQLite, PIN lock, no account, no backend, no tracking. Your data stays with you." />
-<meta name="theme-color" content="#208AEF" />
+<meta name="theme-color" content="#1A7160" />
 <link rel="icon" type="image/png" href="./assets/favicon.png" />
 <link rel="apple-touch-icon" href="./assets/icon.png" />
 
@@ -17,25 +17,25 @@
 
 <style>
   :root {
-    /* Brand — from the app icon / splash (#208AEF) */
-    --brand: #208AEF;
-    --brand-600: #1573cf;
-    --brand-700: #0f5aa8;
-    --brand-glow: rgba(32, 138, 239, 0.35);
+    /* Brand — from the app icon / splash (green #1A7160 on off-white #FBFAF8) */
+    --brand: #1A7160;
+    --brand-600: #14594C;
+    --brand-700: #0F443A;
+    --brand-glow: rgba(26, 113, 96, 0.30);
 
     /* Semantic money colors — mirror the in-app theme (theme.ts) */
     --debit: #DC2626;   /* money out */
     --credit: #16A34A;  /* money in  */
-    --accent: #4F46E5;  /* in-app primary indigo */
+    --accent: #0D9488;  /* teal companion to the brand green */
 
-    /* Light surfaces (mirror palette.light) */
-    --bg: #F7F8FA;
+    /* Light surfaces — warm neutrals to match the logo's off-white */
+    --bg: #FBFAF8;
     --bg-elev: #FFFFFF;
-    --bg-alt: #F1F3F5;
-    --border: #E5E7EB;
-    --fg: #111827;
-    --muted: #6B7280;
-    --hero-tint: rgba(32,138,239,0.06);
+    --bg-alt: #F3F1EC;
+    --border: #E7E3DB;
+    --fg: #1C1917;
+    --muted: #78716C;
+    --hero-tint: rgba(26,113,96,0.06);
 
     --radius-card: 16px;
     --radius-btn: 12px;
@@ -48,20 +48,20 @@
   }
 
   :root[data-theme="dark"] {
-    --brand: #4FA6FF;
-    --brand-600: #2f8fee;
-    --brand-700: #1573cf;
-    --brand-glow: rgba(79, 166, 255, 0.30);
+    --brand: #3FB79E;
+    --brand-600: #2C9A83;
+    --brand-700: #1A7160;
+    --brand-glow: rgba(63, 183, 158, 0.28);
     --debit: #F87171;
     --credit: #4ADE80;
-    --accent: #818CF8;
-    --bg: #0B0F14;
-    --bg-elev: #151A21;
-    --bg-alt: #1E252E;
-    --border: #2A323C;
-    --fg: #F3F4F6;
-    --muted: #9BA3AF;
-    --hero-tint: rgba(79,166,255,0.08);
+    --accent: #2DD4BF;
+    --bg: #0C1210;
+    --bg-elev: #151B18;
+    --bg-alt: #1D2521;
+    --border: #2A342E;
+    --fg: #F2F4F3;
+    --muted: #9CA8A1;
+    --hero-tint: rgba(63,183,158,0.08);
     --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
     --shadow-md: 0 10px 30px rgba(0,0,0,.5);
     --shadow-lg: 0 30px 70px rgba(0,0,0,.6);
@@ -313,7 +313,7 @@
   .cta-banner h2 { position: relative; font-size: clamp(26px, 3.4vw, 38px); font-weight: 800; }
   .cta-banner p { position: relative; margin-top: 14px; font-size: 17px; opacity: .92; }
   .cta-banner .btn { position: relative; margin-top: 28px; background: #fff; color: var(--brand-700); }
-  .cta-banner .btn:hover { background: #f0f6ff; }
+  .cta-banner .btn:hover { background: #edf6f2; }
 
   /* ---------- Footer ---------- */
   footer { border-top: 1px solid var(--border); padding: 56px 0 40px; margin-top: 20px; }
@@ -383,7 +383,7 @@
     <div class="hero-copy reveal">
       <a class="release-banner" href="https://github.com/srjn45/kept/releases/latest" target="_blank" rel="noopener">
         <span class="tag"><span class="live"></span> New</span>
-        v1.1.4 is live — duplicate-safe CSV import &amp; more
+        v1.1.7 is live — a fresh new look for Kept
         <span class="go"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <br>
